@@ -3,7 +3,7 @@ import os
 import shutil
 import json
 import nibabel as nib
-from core.synth import VesselSynth
+from core.synth import VesselSynthEngineWrapper
 
 
 class TestVesselSynth(unittest.TestCase):
@@ -13,7 +13,7 @@ class TestVesselSynth(unittest.TestCase):
         """Create a test directory and other setup."""
         cls.test_dir = 'test_synthetic_data'
         cls.experiment_number = 0
-        cls.synth = VesselSynth(
+        cls.synth = VesselSynthEngineWrapper(
             experiment_dir=cls.test_dir,
             experiment_number=cls.experiment_number,
             n_volumes=2)
@@ -56,7 +56,7 @@ class TestVesselSynth(unittest.TestCase):
             for name in ['prob', 'label', 'level', 'nb_levels',
                          'branch', 'skeleton']:
                 volume_file = (f'{self.synth.experiment_path}'
-                               '/{n:04d}_vessels_{name}.nii.gz'
+                               f'/{n:04d}_vessels_{name}.nii.gz'
                                )
                 self.assertTrue(
                     os.path.isfile(volume_file),
@@ -69,7 +69,7 @@ class TestVesselSynth(unittest.TestCase):
             for name in ['prob', 'label', 'level', 'nb_levels',
                          'branch', 'skeleton']:
                 volume_file = (f'{self.synth.experiment_path}'
-                               '/{n:04d}_vessels_{name}.nii.gz')
+                               f'/{n:04d}_vessels_{name}.nii.gz')
                 img = nib.load(volume_file)
                 self.assertIsInstance(
                     img, nib.Nifti1Image,

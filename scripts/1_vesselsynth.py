@@ -1,5 +1,5 @@
 import torch
-from core.synth import VesselSynth, SynthVesselOCT
+from core.synth import VesselSynthEngineWrapper, VesselSynthEngineOCT
 from synthspline.random import Uniform, RandInt
 
 synth_params = {
@@ -18,8 +18,8 @@ synth_params = {
 # TODO: Make cli parser?
 if __name__ == "__main__":
     torch.no_grad()
-    synth_block = SynthVesselOCT(**synth_params)
-    VesselSynth(
+    synth_engine = VesselSynthEngineOCT(**synth_params)
+    VesselSynthEngineWrapper(
         experiment_number=1,
-        synth_block=synth_block,
+        synth_engine=synth_engine,
         ).synth()

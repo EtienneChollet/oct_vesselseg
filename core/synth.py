@@ -1,6 +1,6 @@
 __all__ = [
-    'SynthVesselOCT',
-    'VesselSynth',
+    'VesselSynthEngineOCT',
+    'VesselSynthEngineWrapper',
 ]
 
 # Standard imports
@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class SynthVesselOCT(SynthSplineBlock):
+class VesselSynthEngineOCT(SynthSplineBlock):
     """Default parameters for SynthVesselOCT."""
 
     class defaults(SynthSplineParameters):
@@ -55,14 +55,14 @@ class SynthVesselOCT(SynthSplineBlock):
         """Device to perform computations on, either 'cuda' or 'cpu'."""
 
 
-class VesselSynth(object):
+class VesselSynthEngineWrapper(object):
     """
     Synthesize 3D vascular network and save as NIfTI.
     """
     def __init__(self,
                  experiment_dir: str = 'synthetic_data',
                  experiment_number: int = 1,
-                 synth_block: SynthSplineBlock = SynthVesselOCT(),
+                 synth_engine: SynthSplineBlock = VesselSynthEngineOCT(),
                  n_volumes: int = 1000,
                  ):
         """
@@ -75,16 +75,16 @@ class VesselSynth(object):
             'synthetic_data' (which is found in oct_vesselseeg/output).
         experiment_number : int, optional
             Identifier for the synthesis experiment, default is 1. (exp0001)
-        synth_block : SynthSplineBlock, optional
-            Block for synthesizing vascular network, default is
-            SynthVesselOCT().
+        synth_engine : SynthSplineBlock, optional
+            Engine for synthesizing vascular network, default is
+            VesselSynthEngineOCT().
         n_volumes : int, optional
             Number of volumes to synthesize, default is 1000.
         """
-        self.synth_block = synth_block
+        self.synth_engine = synth_engine
         # Set environment variable for JIT (don't move out of this class)
         os.environ['PYTORCH_JIT_USE_NNC_NOT_NVFUSER'] = '1'
-        self.shape = synth_block.shape
+        self.shape = synth_engine.shape
         self.n_volumes = n_volumes
         # Output path for the synthesis experiment
         self.experiment_path = (f"output/{experiment_dir}/"
@@ -114,7 +114,7 @@ class VesselSynth(object):
             # Log progesss
             print('\n')
             logger.info(f"Creating volume {n:04d}")
-            synth_vols = self.synth_block()
+            synth_vols = self.synth_engine()
             # Save each volume individually
             for i in range(len(synth_names)):
                 synth_vols[i]
@@ -157,7 +157,7 @@ class VesselSynth(object):
             JSON abspath to log parameters
         """
         # Serialize synthesis parameters
-        serialized = self.synth_block.__dict__['params'].serialize()
+        serialized = self.synth_engine.__dict__['params'].serialize()
         # Convert to JSON string
         json_str = json.dumps(serialized, indent=4)
         # Write to file
