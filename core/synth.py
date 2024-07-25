@@ -2,7 +2,8 @@ __all__ = [
     'VesselSynthEngineOCT',
     'VesselSynthEngineWrapper',
     'ImageSynthEngineOCT',
-    'ImageSynthEngineWrapper'
+    'ImageSynthEngineWrapper',
+    'VesselLabelDataset'
 ]
 
 # Standard imports
@@ -214,8 +215,8 @@ class ImageSynthEngineOCT(nn.Module):
         """
         self.synth_params = synth_params
         self.dtype = dtype
-        self.device = torch.device(
-            device if torch.cuda.is_available() else 'cpu')
+        self.device = device  # torch.device(
+        # device if torch.cuda.is_available() else 'cpu')
         self.backend = dict(device=self.device, dtype=self.dtype)
         self.setup_parameters()
 
@@ -223,7 +224,7 @@ class ImageSynthEngineOCT(nn.Module):
         """
         Setup and initialize synthesis parameters
         """
-        self.speckle_a = float(self.synth_params['speckle'][0])
+        self.speckle_a = float(self.synth_params.get('speckle')[0])
         self.speckle_b = float(self.synth_params['speckle'][1])
         self.gamma_a = float(self.synth_params['gamma'][0])
         self.gamma_b = float(self.synth_params['gamma'][1])
@@ -233,7 +234,7 @@ class ImageSynthEngineOCT(nn.Module):
         self.i_max = float(self.synth_params['imax'])
         self.i_min = float(self.synth_params['imin'])
 
-    @autocast()  # Enables mixed precision for faster computation
+    # @autocast()  # Enables mixed precision for faster computation
     def forward(self, vessel_labels_tensor: torch.Tensor) -> tuple:
         """
         Generate OCT-like volumetric images.
@@ -246,25 +247,30 @@ class ImageSynthEngineOCT(nn.Module):
         # Move the tensor to specified device
         vessel_labels_tensor = vessel_labels_tensor.to(self.device)
         # Get sorted list of all unique vessel labels
-        vessel_labels = torch.unique(
-            vessel_labels_tensor).sort().values.nonzero().squeeze()
+        vessel_labels = torch.unique(vessel_labels_tensor)
+        vessel_labels = vessel_labels[vessel_labels != 0].to(self.device)
 
         # Randomly make a negative control
-        n_unique_ids = 1
-        if RandInt(1, 10)() == 7:
-            vessel_labels_tensor[vessel_labels_tensor > 0] = 0
-            n_unique_ids = 0
+        if vessel_labels.numel() >= 2:
+            # n_unique_ids = 1
+            if RandInt(1, 10)() == 7:
+                # vessel_labels_tensor[vessel_labels_tensor > 0] = 0
+                vessel_labels_tensor.zero_()
+                n_unique_ids = 0
+            else:
+                # Hide some vessels randomly
+                n_unique_ids = len(vessel_labels)
+                number_vessels_to_hide = torch.randint(
+                    n_unique_ids//10,
+                    n_unique_ids-1, [1]
+                    ).item()
+                vessel_ids_to_hide = vessel_labels[
+                    torch.randperm(n_unique_ids)[:number_vessels_to_hide]]
+                for vessel_id in vessel_ids_to_hide:
+                    vessel_labels_tensor[vessel_labels_tensor == vessel_id] = 0
         else:
-            # Hide some vessels randomly
-            n_unique_ids = len(vessel_labels)
-            number_vessels_to_hide = torch.randint(
-                n_unique_ids//10,
-                n_unique_ids-1, [1]
-                )
-            vessel_ids_to_hide = vessel_labels[
-                torch.randperm(n_unique_ids)[:number_vessels_to_hide]]
-            for vessel_id in vessel_ids_to_hide:
-                vessel_labels_tensor[vessel_labels_tensor == vessel_id] = 0
+            vessel_labels_tensor.zero_()
+            n_unique_ids = 0
 
         # Synthesize the parenchyma (background tissue)
         parenchyma = self.parenchyma_(vessel_labels_tensor)
@@ -284,13 +290,14 @@ class ImageSynthEngineOCT(nn.Module):
                 vessels[vessel_labels_tensor > 0] *= vessel_texture[
                     vessel_labels_tensor > 0
                     ]
-        final_volume[vessel_labels_tensor > 0] *= vessels[
-                vessel_labels_tensor > 0
-                ]
+            final_volume[vessel_labels_tensor > 0] *= vessels[
+                    vessel_labels_tensor > 0
+                    ]
         # Normalizing
         final_volume = QuantileTransform()(final_volume)
         # Convert to same dtype as model weights
         final_volume = final_volume.to(torch.float32)
+
         return final_volume, vessel_labels_tensor
 
     def parenchyma_(self, vessel_labels_tensor: torch.Tensor) -> torch.Tensor:
@@ -313,7 +320,7 @@ class ImageSynthEngineOCT(nn.Module):
         parenchyma = RandomSmoothLabelMap(
             nb_classes=RandInt(2, self.nb_classes_)(),
             shape=RandInt(2, self.shape_)(),
-            )(vessel_labels_tensor) + 1  # Add 1 to work w/ every pixel (no 0s)
+            )(vessel_labels_tensor).to(self.device) + 1  # Add 1 to work w/ every pixel (no 0s)
         # Assign random intensities to parenchyma centered around i
         parenchyma = parenchyma.to(torch.float32)
         for i in torch.unique(parenchyma):
@@ -420,9 +427,12 @@ class ImageSynthEngineWrapper(Dataset):
     """
     def __init__(self,
                  exp_path: str = None,
+                 synth_params: dict = None,
                  label_type: str = 'label',
                  device: str = "cuda",
-                 synth_params: Dict = 'complex'
+                 save_nifti: bool = False,
+                 make_fig: bool = False,
+                 save_fig: bool = False
                  ):
         """
         Initialize the dataset for synthesizing OCT volumetric images.
@@ -431,23 +441,38 @@ class ImageSynthEngineWrapper(Dataset):
         ----------
         exp_path : str
             Path to the experiment directory.
+        synth_params : dict
+            Parameters for synthesis image synthesis.
         label_type : str
             Type of label to use for synthesis.
         device : str
             Computation device to use.
-        synth_params : str
-            Parameters for synthesis image synthesis.
+        save_nifti : bool, optional
+            Whether to generate and save volume as a NIfTI file.
+        make_fig : bool, optional
+            Whether to generate a figure of the synthesized volume.
+        save_fig : bool, optional
+            Whether to save the generated figure.
         """
-        self.device = device
-        self.backend = dict(dtype=torch.float32, device=device)
-        self.label_type = label_type
         self.exp_path = exp_path
         self.synth_params = synth_params
+        self.label_type = label_type
+        self.device = device
+        self.save_nifti = save_nifti
+        self.make_fig = make_fig
+        self.save_fig = save_fig
+
+        # Set backend
+        self.backend = dict(dtype=torch.float32, device=device)
         # Get sorted list of vessel label paths
         self.label_paths = sorted(glob.glob(f"{exp_path}/*label*"))
         # Get sorted list of paths for the ground truth
-        self.y_paths = sorted(
-            glob.glob(f"{self.exp_path}/*{self.label_type}*"))
+        if self.label_type == 'label':
+            self.y_paths = self.label_paths
+        else:
+            self.y_paths = sorted(
+                glob.glob(f"{self.exp_path}/*{self.label_type}*"))
+
         # Set paths for saving figures and NIfTI files
         self.sample_fig_dir = f"{exp_path}/sample_vols/figures"
         self.sample_nifti_dir = f"{exp_path}/sample_vols/niftis"
@@ -461,8 +486,7 @@ class ImageSynthEngineWrapper(Dataset):
         """
         return len(self.label_paths)
 
-    def __getitem__(self, idx: int, save_nifti: bool = False,
-                    make_fig: bool = False, save_fig: bool = False) -> tuple:
+    def __getitem__(self, idx: int) -> tuple:
         """
         Retrieve a synthesized OCT volume and label.
 
@@ -470,12 +494,6 @@ class ImageSynthEngineWrapper(Dataset):
         ----------
         idx : int
             Index of the sample from disk.
-        save_nifti : bool, optional
-            Whether to generate and save volume as a NIfTI file.
-        make_fig : bool, optional
-            Whether to generate a figure of the synthesized volume.
-        save_fig : bool, optional
-            Whether to save the generated figure.
         """
         # Load the vessel label NIfTI file and its affine transformation
         label_nifti = nib.load(self.label_paths[idx])
@@ -490,30 +508,32 @@ class ImageSynthEngineWrapper(Dataset):
 
         # Make instance of ImageSynthEngine and generate the synthesized volume
         im, prob = ImageSynthEngineOCT(
-            synth_params=self.synth_params)(label_tensor)
+            synth_params=self.synth_params
+            )(label_tensor)
         # Convert the tensor data to numpy arrays
         im = im.detach().cpu().numpy().squeeze()
         prob = prob.to(torch.int32).cpu().numpy().squeeze()
 
         # Optionally save the synthesized volume and probability map as NIfTIs
-        if save_nifti is True:
+        if self.save_nifti is True:
             volume_name = f"volume-{idx:04d}"
             out_path_volume = f'{self.sample_nifti_dir}/{volume_name}.nii'
             out_path_prob = f'{self.sample_nifti_dir}/{volume_name}_MASK.nii'
-            print(f"Saving Nifti to: {out_path_volume}")
+            logger.info(f"Saved NIfTI to: {out_path_volume}")
             nib.save(nib.Nifti1Image(im, affine=label_affine), out_path_volume)
             nib.save(nib.Nifti1Image(prob, affine=label_affine), out_path_prob)
 
         # Optionally generate and save figures
-        if save_fig is True:
-            make_fig = True
-        if make_fig is True:
-            self.make_fig(im, prob)
-        if save_fig is True:
+        if self.save_fig is True:
+            self.make_fig = True
+        if self.save_fig is True:
+            self._make_fig(im, prob)
+        if self.save_nifti is True:
             plt.savefig(f"{self.sample_fig_dir}/{volume_name}.png")
-        return im, prob
 
-    def make_fig(self, im: np.ndarray, prob: np.ndarray) -> None:
+        return im.unsqueeze(0), prob.unsqueeze(0)
+
+    def _make_fig(self, im: np.ndarray, prob: np.ndarray) -> None:
         """
         Make 2D figure (GT, prediction, gt-pred superimposed) and display it.
 
@@ -537,3 +557,53 @@ class ImageSynthEngineWrapper(Dataset):
         # Display the superimposed image and probability map
         axarr[2].imshow(im[frame], cmap='gray')
         axarr[2].contour(prob[frame], cmap='magma', alpha=1)
+
+
+class VesselLabelDataset(Dataset):
+    """
+    Dataset for loading and processing 3D vascular networks.
+    """
+    def __init__(self,
+                 inputs,
+                 subset=-1,
+                 ):
+        """
+        Initialize the dataset with the given inputs and subset size.
+
+        Parameters
+        ----------
+        inputs : list or str
+            List of file paths or a directory/pattern representing the input
+            labels.
+        subset : int, optional
+            Number of examples to consider for the dataset, if not all.
+
+        Returns
+        -------
+        label as shape as torch.Tensor of shape (1, n, n, n)
+        """
+        self.subset = slice(subset)
+        # Uses less RAM in multithreads
+        if isinstance(inputs, str):
+            inputs = glob.glob(inputs)
+        elif not isinstance(inputs, (list, np.ndarray)):
+            raise TypeError("inputs must be a list, numpy array, or a glob\
+                pattern string")
+        self.inputs = np.asarray(inputs[self.subset])
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def __getitem__(self, idx):
+        """
+        Get a single label from the dataset.
+
+        Parameters
+        ----------
+        idx : int
+            Index of the label to retrieve.
+        """
+        label = torch.from_numpy(
+            nib.load(self.inputs[idx]).get_fdata()).to('cuda')
+        label = torch.clip(label, 0, 32767).to(torch.int16)[None]
+        return label

@@ -21,11 +21,12 @@ synth_params = {
 if __name__ == "__main__":
     synth = ImageSynthEngineWrapper(
         exp_path="output/synthetic_data/exp0001",
-        label_type='label',
         synth_params=synth_params,
+        save_nifti=True,
+        save_fig=True
         )
     t1 = time.time()
     for i in range(10):
-        synth.__getitem__(i, save_nifti=True, make_fig=False, save_fig=False)
+        synth[i]
     t2 = time.time()
     print(t2-t1)
