@@ -1,5 +1,5 @@
 __all__ = [
-    'SegNet'
+    'SegNet',
     'UNet',
     'UnetWrapper'
 ]
@@ -245,6 +245,10 @@ class UnetWrapper(nn.Module):
         self.learning_rate = learning_rate
         self.to(self.device)
 
+    def fix_state_dict(self, state_dict):
+        """Adjust the keys by adding 'trainee.' prefix."""
+        return {'trainee.' + key: value for key, value in state_dict.items()}
+
     def load(self, backbone_dict=None, augmentation=True, type='best',
              mode='train'):
         """
@@ -268,7 +272,6 @@ class UnetWrapper(nn.Module):
         self.segnet = SegNet(backbone='UNet', activation=None,
                              kwargs_backbone=self.backbone_dict
                              ).to(self.device)
-        # self.segnet = torch.compile(self.segnet)
 
         # Setting up augmentation
         if mode == 'train' and augmentation:
@@ -287,6 +290,7 @@ class UnetWrapper(nn.Module):
             'augmentation': augmentation,
             'lr': self.learning_rate
         }
+
         # Load trainee
         checkpoint_path = utils.Checkpoint(self.checkpoint_dir).get(type)
         if mode == 'train':
@@ -296,13 +300,26 @@ class UnetWrapper(nn.Module):
             trainee = train.SupervisedTrainee(**trainee_config)
 
         # Load from checkpoint
+        # TODO: Find out what I'm doing wrong in saving model weights (which
+        # warrants this fixing of state dict)
         if checkpoint_path:
+            checkpoint = torch.load(checkpoint_path)
+            fixed_state_dict = self.fix_state_dict(checkpoint['state_dict'])
             trainee = train.FineTunedTrainee.load_from_checkpoint(
                 checkpoint_path=checkpoint_path,
-                trainee=trainee,
-                loss=self.losses
+                map_location=self.device,
+                trainee=train.SupervisedTrainee(
+                    network=self.segnet,
+                    loss=self.losses[0],
+                    metrics=self.metrics,
+                    augmentation=augmentation,
+                    lr=self.learning_rate
+                    ),
+                strict=False
             )
+            trainee.load_state_dict(fixed_state_dict, strict=True)
         self.trainee = trainee.to(self.device)
+
         return trainee
 
     def new(self, nb_levels=4, nb_features=[32, 64, 128, 256], dropout=0,
