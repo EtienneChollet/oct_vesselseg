@@ -1,5 +1,6 @@
 __all__ = [
     'PathTools',
+    'Options',
     'JsonTools',
     'Checkpoint',
     'ensure_list',
@@ -13,16 +14,6 @@ import json
 import torch
 import shutil
 from types import GeneratorType as generator
-
-
-# Third-party imports
-# import numpy as np
-# import torch
-# from torchmetrics.functional import dice
-# import torch.nn.functional as F
-# from torch import nn
-# import scipy.ndimage as ndimage
-# from cornucopia.cornucopia import QuantileTransform
 
 
 class PathTools(object):
@@ -175,6 +166,77 @@ class Checkpoint(object):
             return self.best()
         elif type == 'last':
             return self.last()
+
+
+class Options(object):
+    """
+    Base class for managing and constructing file paths based on class
+    attributes.
+
+    Attributes
+    ----------
+    cls : object
+        The class instance from which attributes are retrieved.
+    attribute_dict : dict
+        Dictionary of attributes from the class instance.
+    out_dir : str
+        Output directory for the prediction file.
+    full_path : str
+        Full file path for the prediction file.
+    """
+
+    def __init__(self, cls):
+        """
+        Initialize the Options class with the provided class instance.
+
+        Parameters
+        ----------
+        cls : object
+            The class instance from which attributes are retrieved.
+        """
+        self.cls = cls
+        self.attribute_dict = self.cls.__dict__
+        self.out_dir = None
+        self.full_path = None
+
+    def out_filepath(self, dir=None):
+        """
+        Construct the output file path based on class attributes.
+
+        Parameters
+        ----------
+        dir : str, optional
+            Directory to save the output file. If not provided, defaults to
+            'predictions' subdirectory within the class instance's volume
+            directory.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the output directory and the full file path.
+        """
+        stem = f"{self.attribute_dict['tensor_name']}-prediction"
+        stem += f"_stepsz-{self.attribute_dict['step_size']}"
+
+        # Add accuracy details if available
+        accuracy_name = self.attribute_dict.get('accuracy_name')
+        accuracy_val = self.attribute_dict.get('accuracy_val')
+        if accuracy_name and accuracy_val:
+            stem += f"_{accuracy_name}-{accuracy_val}"
+
+        stem += '.nii.gz'
+
+        # Determine output directory
+        if dir is None:
+            self.out_dir = os.path.join(self.attribute_dict['volume_dir'],
+                                        'predictions')
+        else:
+            self.out_dir = dir
+
+        # Construct full file path
+        self.full_path = os.path.join(self.out_dir, stem)
+
+        return self.out_dir, self.full_path
 
 
 def ensure_list(x, size=None, crop=True):
