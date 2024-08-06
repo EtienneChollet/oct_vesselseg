@@ -297,6 +297,8 @@ class ImageSynthEngineOCT(nn.Module):
         final_volume = QuantileTransform()(final_volume)
         # Convert to same dtype as model weights
         final_volume = final_volume.to(torch.float32)
+        # Convert one-hot encoded vessels to binary label map
+        vessel_labels_tensor[vessel_labels_tensor != 0] = 1
 
         return final_volume, vessel_labels_tensor
 
