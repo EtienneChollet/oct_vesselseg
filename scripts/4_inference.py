@@ -1,12 +1,11 @@
 import gc
 import time
-import torch
 import argparse
-from core.models import UnetWrapper
-from core.data import RealOctPredict
-
 
 def main(args):
+    import torch
+    from core.models import UnetWrapper
+    from core.data import RealOctPredict
     version = args.version
     in_vol = args.in_vol
     patch_size = args.patch_size
