@@ -12,7 +12,7 @@ cupy_package = f'cupy-cuda{cuda_version}'
 
 setup(
     name='oct_vesselseg',
-    version='0.0.1',
+    version='0.0.2',
     description='A PyTorch based package for data synthesis and machine learning of vessel extraction in volumetric OCT images (mus).',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
