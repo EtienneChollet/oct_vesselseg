@@ -52,9 +52,9 @@ def configure():
         with open(bashrc_path, 'w') as file:
             file.write(export_command)
 
-    # Optionally, source the .bashrc file (applies the changes immediately in current session)
+    # Optionally, source the .bashrc file (applies the changes immediately in
+    # current session)
     os.system(f'source {bashrc_path}')
-
 
 
 @app.command()
