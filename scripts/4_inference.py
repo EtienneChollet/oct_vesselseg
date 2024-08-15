@@ -5,8 +5,8 @@ import argparse
 
 def main(args):
     import torch
-    from core.models import UnetWrapper
-    from core.data import RealOctPredict
+    from oct_vesselseg.models import UnetWrapper
+    from oct_vesselseg.data import RealOctPredict
     version = args.version
     in_vol = args.in_vol
     patch_size = args.patch_size
@@ -50,9 +50,8 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Test UNet model that \
-                                     has been trained in default models\
-                                     dir.")
+    parser = argparse.ArgumentParser(description="Test UNet model that has \
+        been trained in default models dir.")
 
     parser.add_argument('-v', '--version', type=str, default='1',
                         help='Model version to test (default: 1). Can test many versions seperated by commas.')

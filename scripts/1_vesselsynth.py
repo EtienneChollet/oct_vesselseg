@@ -3,7 +3,7 @@ import argparse
 
 def main(args):
     import torch
-    from core.synth import VesselSynthEngineWrapper, VesselSynthEngineOCT
+    from oct_vesselseg.synth import VesselSynthEngineWrapper, VesselSynthEngineOCT
     from synthspline.random import Uniform, RandInt
 
     exp = int(args.exp)

@@ -16,7 +16,6 @@ import numpy as np
 from torch import nn
 from typing import Union, List, Dict
 import matplotlib.pyplot as plt
-from torch.cuda.amp import autocast
 from torch.utils.data import Dataset
 
 # Balbasty imports
@@ -39,7 +38,7 @@ from cornucopia import (
 from cornucopia.random import Fixed, Normal
 
 # Custom Imports
-from core.utils import PathTools
+from oct_vesselseg.utils import PathTools
 
 # Setup logging
 logging.basicConfig(
@@ -322,7 +321,8 @@ class ImageSynthEngineOCT(nn.Module):
         parenchyma = RandomSmoothLabelMap(
             nb_classes=RandInt(2, self.nb_classes_)(),
             shape=RandInt(2, self.shape_)(),
-            )(vessel_labels_tensor).to(self.device) + 1  # Add 1 to work w/ every pixel (no 0s)
+            # Add 1 to work w/ every pixel (no 0s)
+            )(vessel_labels_tensor).to(self.device) + 1
         # Assign random intensities to parenchyma centered around i
         parenchyma = parenchyma.to(torch.float32)
         for i in torch.unique(parenchyma):

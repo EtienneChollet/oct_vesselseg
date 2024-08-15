@@ -1,5 +1,5 @@
 # Custom Imports
-from core.synth import ImageSynthEngineWrapper
+from oct_vesselseg.synth import ImageSynthEngineWrapper
 import time
 
 synth_params = {

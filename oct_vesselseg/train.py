@@ -165,10 +165,10 @@ class SupervisedTrainee(pl.LightningModule):
         network : nn.Module, optional
             The feedforward network model.
         loss : nn.Module or nn.ModuleList or nn.ModuleDict, optional
-            The loss function(s) to optimize. If a ModuleList or ModuleDict is 
+            The loss function(s) to optimize. If a ModuleList or ModuleDict is
             provided, the losses are weighted and summed.
         weights : float or list[float], optional
-            The weight(s) to use for each loss if a ModuleList or ModuleDict is 
+            The weight(s) to use for each loss if a ModuleList or ModuleDict is
             provided (default is 1).
         metrics : nn.Module or nn.ModuleList or nn.ModuleDict, optional
             The metrics to compute for evaluation.

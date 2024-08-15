@@ -2,7 +2,7 @@ import os
 import torch
 
 # Custom Imports
-from core.models import UnetWrapper
+from oct_vesselseg.models import UnetWrapper
 
 synth_params = {
     "parenchyma": {

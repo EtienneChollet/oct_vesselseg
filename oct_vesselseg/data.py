@@ -18,7 +18,7 @@ from cornucopia import QuantileTransform
 from typing import Union, Optional, Tuple
 
 # Local application/library specific imports
-from core.utils import Options
+from oct_vesselseg.utils import Options
 
 
 class RealOct(object):

@@ -14,10 +14,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import LearningRateMonitor
 
 # Custom Imports
-from core import modules, utils
-from core.losses import DiceLoss
-from core import train
-from core.synth import ImageSynthEngineOCT, VesselLabelDataset
+from oct_vesselseg import modules, utils
+from oct_vesselseg.losses import DiceLoss
+from oct_vesselseg import train
+from oct_vesselseg.synth import ImageSynthEngineOCT, VesselLabelDataset
 
 
 def _init_from_defaults(self, **kwargs):
