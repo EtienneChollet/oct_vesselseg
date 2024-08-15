@@ -7,15 +7,71 @@ app = App()
 
 
 @app.command()
-def synth(exp: int = 1, shape: list = [128, 128, 128],
-          voxel_size: float = 0.02, levels: list = [1, 4],
-          density: list = [0.1, 0.2], tortuosity: list = [1, 5],
-          root_radius: list = [0.1, 0.15], radius_ratio: list = [0.25, 1],
-          radius_change: list = [0.9, 1.1], children: list = [1, 4],
-          device: str = 'cuda'):
+def configure():
     """
-    Synthesize volumetric vessel labels with morphological parameters by
-    sampling probability density functions.
+    Configures ~/.bashrc for oct_vesselseg project by setting OCT_VESSELSEG_BASE_DIR environment variable to specified directory.
+    """
+    import os
+    variable_name = 'OCT_VESSELSEG_BASE_DIR'
+    bashrc_path = os.path.expanduser("~/.bashrc")
+    # Collect user input
+    print('Please enter the path to the output directory for oct_vesselseg')
+    oct_vesselseg_base_dir = input('> ')
+
+    # Check if the base directory exists, create it if it doesn't
+    if not os.path.exists(oct_vesselseg_base_dir):
+        try:
+            os.makedirs(oct_vesselseg_base_dir)
+            print(
+                f"Directory '{oct_vesselseg_base_dir}' created successfully.")
+        except OSError as e:
+            print(
+                f"Failed to create directory '{oct_vesselseg_base_dir}': {e}")
+            return
+
+    export_command = f'export {variable_name}="{oct_vesselseg_base_dir}"\n'
+
+    # Check if the variable already exists in .bashrc
+    if os.path.exists(bashrc_path):
+        with open(bashrc_path, 'r') as file:
+            lines = file.readlines()
+
+        # Update the variable if it exists
+        for i, line in enumerate(lines):
+            if line.startswith(f'export {variable_name}='):
+                lines[i] = export_command
+                break
+        else:
+            # If the variable does not exist, append it
+            lines.append(export_command)
+
+        with open(bashrc_path, 'w') as file:
+            file.writelines(lines)
+    else:
+        # If the .bashrc file doesn't exist, create it and add the variable
+        with open(bashrc_path, 'w') as file:
+            file.write(export_command)
+
+    # Optionally, source the .bashrc file (applies the changes immediately in current session)
+    os.system(f'source {bashrc_path}')
+
+
+
+@app.command()
+def vesselsynth(exp: int = 1,
+                shape: tuple[int, int, int] = [128, 128, 128],
+                voxel_size: float = 0.02,
+                levels: tuple[int, int] = [1, 4],
+                density: tuple[float, float] = [0.1, 0.2],
+                tortuosity: tuple[int, int] = [1, 5],
+                root_radius: tuple[float, float] = [0.1, 0.15],
+                radius_ratio: tuple[float, float] = [0.25, 1],
+                radius_change: tuple[float, float] = [0.9, 1.1],
+                children: tuple[int, int] = [1, 4],
+                device: str = 'cuda'
+                ):
+    """
+    Synthesize volumetric vessel labels with morphological parameters by sampling probability density functions.
 
     Parameters
     ----------
@@ -71,18 +127,21 @@ def synth(exp: int = 1, shape: list = [128, 128, 128],
 
 
 @app.command()
-def imagesynth(exp: int = 1, n_samples: int = 10,
-               parenchyma_classes: int = 5, parenchyma_shape: int = 10,
-               gamma: list = [0.2, 2], z_decay: int = 32,
-               speckle: list = [0.2, 0.8],
-               vessel_intensity: list = [0.01, 0.8],
+def imagesynth(exp: int = 1,
+               n_samples: int = 10,
+               parenchyma_classes: int = 5,
+               parenchyma_shape: int = 10,
+               gamma: tuple[float, float] = [0.2, 2],
+               z_decay: int = 32,
+               speckle: tuple[float, float] = [0.2, 0.8],
+               vessel_intensity: tuple[float, float] = [0.01, 0.8],
                vessel_texture: bool = True,
-               spheres: bool = True, slabwise_banding: bool = True,
+               spheres: bool = True,
+               slabwise_banding: bool = True,
                dc_offset: bool = True
                ):
     """
-    Synthesize OCT images with optional noise/artifact models and save in
-    synthetic experiment directory.
+    Synthesize OCT images with optional noise/artifact models and save in synthetic experiment directory.
 
     Parameters
     ----------
@@ -141,15 +200,25 @@ def imagesynth(exp: int = 1, n_samples: int = 10,
 
 
 @app.command()
-def train(model_version: int = 1, model_dir: str = 'models', lr: float = 1e-3,
-          model_levels: int = 4, model_features: list = [32, 64, 128, 256],
-          n_volumes: int = 1000, train_to_val: float = 0.8, n_steps: int = 1e5,
-          batch_size: int = 1, exp: int = 1, n_samples: int = 10,
-          parenchyma_classes: int = 5, parenchyma_shape: int = 10,
-          gamma: list = [0.2, 2], z_decay: int = 32,
-          speckle: list = [0.2, 0.8], vessel_intensity: list = [0.01, 0.8],
+def train(model_version: int = 1,
+          model_dir: str = 'models',
+          lr: float = 1e-3,
+          model_levels: int = 4,
+          model_features: tuple[int] = [32, 64, 128, 256],
+          n_volumes: int = 1000,
+          train_to_val: float = 0.8,
+          n_steps: int = 1e5,
+          batch_size: int = 1,
+          exp: int = 1,
+          parenchyma_classes: int = 5,
+          parenchyma_shape: int = 10,
+          gamma: tuple[float, float] = [0.2, 2],
+          z_decay: int = 32,
+          speckle: tuple[float, float] = [0.2, 0.8],
+          vessel_intensity: tuple[float, float] = [0.01, 0.8],
           vessel_texture: bool = True,
-          spheres: bool = True, slabwise_banding: bool = True,
+          spheres: bool = True,
+          slabwise_banding: bool = True,
           dc_offset: bool = True
           ):
     """
@@ -167,8 +236,6 @@ def train(model_version: int = 1, model_dir: str = 'models', lr: float = 1e-3,
         Number of levels (encoding and decoding blocks) of the model.
     model_features : list
         List of number of features within the corresponging level of the model.
-    n_volumes : int
-        Number of synthetic vessel label volumes to use for training.
     train_to_val : float
         Ratio of training data to validation data.
     n_steps : int
@@ -178,8 +245,6 @@ def train(model_version: int = 1, model_dir: str = 'models', lr: float = 1e-3,
     exp : int
         Data experiment number for loading and volumetric data and synthesis
         description.
-    n_samples : int
-        Number of samples to synthesize and save to data experiment.
     parenchyma_classes : int
         Sampler upper bound for number of classes of parenchyma/neural tissue.
     parenchyma_shape : int

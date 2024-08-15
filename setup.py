@@ -16,22 +16,22 @@ setup(
     description='A PyTorch based package for data synthesis and machine learning of vessel extraction in volumetric OCT images (mus).',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
-    author='Etienne Chollet, Yaël Balbastre, Chiara Mauri, Caroline Magnain, Bruce Fischl, Hui Wang',
+    author='Etienne Chollet & Yaël Balbastre',
     author_email='etiennepchollet@gmail.com',
-    project_urls = {
+    project_urls={
         "Conference Preprint": "https://arxiv.org/abs/2405.13757v1",
         "Paper Preprint": "https://arxiv.org/abs/2407.01419v1",
         "Source": "https://github.com/EtienneChollet/oct_vesselseg"
-    }
+    },
     packages=find_packages(),
     entry_points={
             'console_scripts': [
-                'oct_vesselseg=oct_vesselseg/cli:app'
+                'oct_vesselseg=oct_vesselseg:main.app'
             ]
         },
     install_requires=[
         cupy_package,
-        'cppyy~=2.3'
+        'cppyy~=2.3',
         'torch',
         'torchvision',
         'torchaudio',
