@@ -12,7 +12,7 @@ cupy_package = f'cupy-cuda{cuda_version}'
 
 setup(
     name='oct_vesselseg',
-    version='0.0.2',
+    version='0.0.3',
     description='A Label-Free and Data-Free Synthesis Engine and Training Framework for Vascular Segmentation of sOCT Data with PyTorch.',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
