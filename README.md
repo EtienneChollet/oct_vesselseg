@@ -21,21 +21,28 @@ Characterized by minimal priors and high variance sampling, this project builds 
 
 This project focuses on generating synthetic datasets for training a 3D U-Net for the task of vasculature segmentation in OCT data. Using a cubic spline synthesis pipeline first established in [SynthSpline](https://github.com/balbasty/synthspline), and many data augmentation techniques from [Cornucopia](https://github.com/balbasty/cornucopia) this project employs domain-randomized synthesis to create structured labels, textures, and artifacts, enhancing the training of neural networks for vascular segmentation.
 
+## Check out our papers!
+
+📜 July 2024: [Long paper preprint](https://arxiv.org/abs/2407.01419v1)
+
+📜 April 2024: [Short paper preprint from Medical Imaging with Deep Learning Conference](https://arxiv.org/abs/2405.13757v1)
+
 ![Pipeline](docs/pipeline.png "Synthesis, Training, and Inference Pipeline")
 
 # Getting Started
+
 Hard requirements include `Cppyy~=2.3` and `Python~=3.9`
 
 ## Installation
 
-Create and activate a new mamba environment with python 3.9
+It is suggested that you create and activate a new mamba environment with python 3.9. You can learn how to install mamba by following the instructions provided in the [Miniforge repo](https://github.com/conda-forge/miniforge).
 
 ```bash
 mamba create -n oct_tissuemasking python=3.9
 mamba activate oct_tissuemasking
 ```
 
-Install synthspline for vasculature synthesis
+In order to synthesize vascular labels from splines, we will need to install the code from the synthspline repo.
 
 ```bash
 pip install git+https://github.com/balbasty/synthspline.git#f78ba23
@@ -70,6 +77,48 @@ Synthesize the vascular labels for training. You can get help for this command w
 ```bash
 oct_vesselseg vesselsynth
 ```
+
+There are many different parameters you can specify with this command using these flags:
+
+### `--shape`
+
+Example: `oct_vesselseg vesselsynth --shape 128,128,128`
+
+This is the shape of the volume (input data) to be synthesized. This does not need to be a perfect cube. This will also be the shape of the UNet you will train.
+
+### `--voxel-size`
+This is the spatial resolution of the data to be synthesized measured in units of $\frac{mm^3}{voxel}$. The default value is $0.02 \frac{mm^3}{voxel}$.
+
+### `--tree-levels`
+Sampler bounds for the number of hierarchical levels in the vascular tree. The level of a branch in a vascular tree refers to the distance (in terms of number of branches) from the root node to the node from which the branch in question originates.
+
+* Root Branch (level 0): The root branch is at level 0.
+* First Branch (level 1): The children of the root branch are at level 1.
+* Second level (level 2): The grandchildren of the root are at level 2.
+
+This quantity is sampled from a discrete uniform distribution for each tree that is created.
+
+### `--tree-density`
+Sampler bounds for the number of trees (or root points) per volume in units of $\frac{trees}{mm^3}$. This quantity is sampled from a uniform distribution for each volume that is created.
+
+### `--tree-root-radius`
+
+Sampler bounds for the radius of the first branch (root, Level 0). This quantity is sampled from a uniform distribution for each tree that is created.
+
+### `--branch-tortuosity`
+Sampler bounds for the tortuosity of a given branch. This quantity is sampled from a uniform distribution for each branch that is created. Tortuosity is defined as such:
+
+$tortuosity = \frac{cord}{length}$
+
+### `--branch-radius-ratio`
+Sampler bounds for the ratio of the radius of the child branch compared to the radius of the parent branch. This is sampled from a uniform distribution for each child branch that is created.
+
+
+### `--branch-radius-change`
+Sampler bounds for a multiplicative variation in radius along the legth of a vessel. This is sampled from a uniform distribution for each branch.
+
+### `--branch-children`
+Sampler bounds for the number of children per parent. This is sampled from a discrete uniform distribution for each parent branch.
 
 ## OCT Image Synthesis
 
