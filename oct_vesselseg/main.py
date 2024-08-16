@@ -58,16 +58,16 @@ def configure():
 
 
 @app.command()
-def vesselsynth(exp: int = 1,
+def vesselsynth(data_experiment_n: int = 1,
                 shape: tuple[int, int, int] = [128, 128, 128],
                 voxel_size: float = 0.02,
-                levels: tuple[int, int] = [1, 4],
-                density: tuple[float, float] = [0.1, 0.2],
-                tortuosity: tuple[int, int] = [1, 5],
-                root_radius: tuple[float, float] = [0.1, 0.15],
-                radius_ratio: tuple[float, float] = [0.25, 1],
-                radius_change: tuple[float, float] = [0.9, 1.1],
-                children: tuple[int, int] = [1, 4],
+                tree_levels: tuple[int, int] = [1, 4],
+                tree_density: tuple[float, float] = [0.1, 0.2],
+                tree_root_radius: tuple[float, float] = [0.1, 0.15],
+                branch_tortuosity: tuple[int, int] = [1, 5],
+                branch_radius_ratio: tuple[float, float] = [0.25, 1],
+                branch_radius_change: tuple[float, float] = [0.9, 1.1],
+                branch_children: tuple[int, int] = [1, 4],
                 device: str = 'cuda'
                 ):
     """
@@ -75,28 +75,28 @@ def vesselsynth(exp: int = 1,
 
     Parameters
     ----------
-    exp : int
+    data_experiment_n : int
         Data experiment number for saving volumetric data and synthesis
         description.
     shape : list
         Shape of the synthetic volume in voxels (x, y, z).
     voxel_size : float
         Resolution of the synthetic volume in mm^3 per voxel.
-    levels : list[int]
+    tree_levels : list[int]
         Number of hierarchical levels in the vascular tree.
-    density : list[float]
+    tree_density : list[float]
         Density of the vascular tree structures per cubic mm (trees/mm^3).
-    tortuosity : list[float]
-        Sampler for tortuosity of vasculature (tortuosity ~= cord / length)
-    root_radius : list[float]
+    tree_root_radius : list[float]
         Sampler bounds for radius of vascular tree trunk in mm.
-    radius_ratio : list[float]
+    branch_tortuosity : list[float]
+        Sampler for tortuosity of vasculature (tortuosity ~= cord / length)
+    branch_radius_ratio : list[float]
         Sampler bounds for the ratio of the radius of children vessels to the
         parent vessel.
-    radius_change : list[float]
+    branch_radius_change : list[float]
         Sampler bounds for a multiplicative variation in radius along the legth
         of a vessel
-    children : list[int]
+    branch_children : list[int]
         Sampler bounds for the number of branches per tree.
     device : str
         Device to perform the computations on. Default is 'cuda'
@@ -108,44 +108,44 @@ def vesselsynth(exp: int = 1,
     synth_params = {
         'shape': shape,
         'voxel_size': voxel_size,
-        'nb_levels': RandInt(*levels),
-        'tree_density': Uniform(*density),
-        'tortuosity': Uniform(*tortuosity),
-        'radius': Uniform(*root_radius),
-        'radius_ratio': Uniform(*radius_ratio),
-        'radius_change': Uniform(*radius_change),
-        'nb_children': RandInt(*children),
+        'nb_levels': RandInt(*tree_levels),
+        'density': Uniform(*tree_density),
+        'tortuosity': Uniform(*branch_tortuosity),
+        'radius': Uniform(*tree_root_radius),
+        'radius_ratio': Uniform(*branch_radius_ratio),
+        'radius_change': Uniform(*branch_radius_change),
+        'nb_children': RandInt(*branch_children),
         'device': device
         }
 
     torch.no_grad()
     synth_engine = VesselSynthEngineOCT(**synth_params)
     VesselSynthEngineWrapper(
-        experiment_number=exp,
+        experiment_number=data_experiment_n,
         synth_engine=synth_engine,
         ).synth()
 
 
 @app.command()
-def imagesynth(exp: int = 1,
+def imagesynth(data_experiment_n: int = 1,
                n_samples: int = 10,
                parenchyma_classes: int = 5,
                parenchyma_shape: int = 10,
-               gamma: tuple[float, float] = [0.2, 2],
-               z_decay: int = 32,
-               speckle: tuple[float, float] = [0.2, 0.8],
                vessel_intensity: tuple[float, float] = [0.01, 0.8],
                vessel_texture: bool = True,
-               spheres: bool = True,
-               slabwise_banding: bool = True,
-               dc_offset: bool = True
+               image_gamma: tuple[float, float] = [0.2, 2],
+               image_z_decay: int = 32,
+               image_speckle: tuple[float, float] = [0.2, 0.8],
+               image_spheres: bool = True,
+               image_banding: bool = True,
+               image_dc_offset: bool = True
                ):
     """
     Synthesize OCT images with optional noise/artifact models and save in synthetic experiment directory.
 
     Parameters
     ----------
-    exp : int
+    data_experiment_n : int
         Data experiment number for loading and volumetric data and synthesis
         description.
     n_samples : int
@@ -155,22 +155,22 @@ def imagesynth(exp: int = 1,
     parenchyma_shape : int
         Sampler upper bound for number of control points in a given
         parenchyma class.
-    gamma : list
+    image_gamma : list
         Sampler bounds for non-linear contrast adjustment/stretch.
         Larger values increase contrast whereas lower values decrease contrast.
-    z_decay : list
+    image_z_decay : list
         Z decay upper bound
-    speckle : list
+    image_speckle : list
         Sampler bounds for speckle noise parameters.
     vessel_intensity : list
         Sampler bounds for weighted blending of vessels onto parenchyma.
     vessel_texture : bool
         Apply intra-vascular textures/artifacts.
-    spheres : bool
+    image_spheres : bool
         Apply sphere artifacts to image.
-    slabwise_banding : bool
+    image_banding : bool
         Apply slabwise banding (z-decay) artifact to the image.
-    dc_offset : bool
+    image_dc_offset : bool
         Add a small value to the parenchyma tensor.
     """
     from oct_vesselseg.synth import ImageSynthEngineWrapper
@@ -179,18 +179,18 @@ def imagesynth(exp: int = 1,
             "nb_classes": parenchyma_classes,
             "shape": parenchyma_shape
         },
-        "gamma": gamma,
-        "z_decay": [z_decay],
-        "speckle": speckle,
-        "imax": vessel_intensity[0],
-        "imin": vessel_intensity[1],
+        "gamma": image_gamma,
+        "z_decay": [image_z_decay],
+        "speckle": image_speckle,
+        "imin": vessel_intensity[0],
+        "imax": vessel_intensity[1],
         "vessel_texture": vessel_texture,
-        "spheres": spheres,
-        "slabwise_banding": slabwise_banding,
-        "dc_offset": dc_offset
+        "spheres": image_spheres,
+        "slabwise_banding": image_banding,
+        "dc_offset": image_dc_offset
     }
     synth = ImageSynthEngineWrapper(
-        exp_path=f"output/synthetic_data/{exp:04}",
+        exp_path=f"output/synthetic_data/{data_experiment_n:04}",
         synth_params=synth_params,
         save_nifti=True,
         save_fig=True
@@ -200,97 +200,100 @@ def imagesynth(exp: int = 1,
 
 
 @app.command()
-def train(model_version: int = 1,
-          model_dir: str = 'models',
-          lr: float = 1e-3,
-          model_levels: int = 4,
-          model_features: tuple[int] = [32, 64, 128, 256],
-          n_volumes: int = 1000,
-          train_to_val: float = 0.8,
-          n_steps: int = 1e5,
-          batch_size: int = 1,
-          exp: int = 1,
-          parenchyma_classes: int = 5,
-          parenchyma_shape: int = 10,
-          gamma: tuple[float, float] = [0.2, 2],
-          z_decay: int = 32,
-          speckle: tuple[float, float] = [0.2, 0.8],
-          vessel_intensity: tuple[float, float] = [0.01, 0.8],
-          vessel_texture: bool = True,
-          spheres: bool = True,
-          slabwise_banding: bool = True,
-          dc_offset: bool = True
-          ):
+def train(
+    model_version_n: int = 1,
+    model_dir: str = 'models',
+    model_levels: int = 4,
+    model_features: tuple[int] = [32, 64, 128, 256],
+    training_lr: float = 1e-3,
+    training_train_to_val: float = 0.8,
+    training_steps: int = 1e5,
+    training_batch_size: int = 1,
+    synth_data_experiment_n: int = 1,
+    synth_samples: int = 1000,
+    synth_parenchyma_classes: int = 5,
+    synth_parenchyma_shape: int = 10,
+    synth_image_gamma: tuple[float, float] = [0.2, 2],
+    synth_image_z_decay: int = 32,
+    synth_image_speckle: tuple[float, float] = [0.2, 0.8],
+    synth_vessel_intensity: tuple[float, float] = [0.01, 0.8],
+    synth_vessel_texture: bool = True,
+    synth_image_spheres: bool = True,
+    synth_image_banding: bool = True,
+    synth_image_dc_offset: bool = True
+        ):
     """
     Train a Unet with specified model and imagesynth parameters.
 
     Parameters
     ----------
-    model_version : int
+    model_version_n : int
         Version number of the model to train.
     model_dir : str
         Directory within output folder to save model versions.
-    lr : float
-        Learning rate of the main training phase (between warmup and cooldown)
     model_levels : int
         Number of levels (encoding and decoding blocks) of the model.
     model_features : list
         List of number of features within the corresponging level of the model.
-    train_to_val : float
+    training_lr : float
+        Learning rate of the main training phase (between warmup and cooldown)
+    training_train_to_val : float
         Ratio of training data to validation data.
-    n_steps : int
+    training_steps : int
         Number of steps the model will perform.
-    batch_size : int
+    training_batch_size : int
         Number of samples per batch.
-    exp : int
+    synth_data_experiment_n : int
         Data experiment number for loading and volumetric data and synthesis
         description.
-    parenchyma_classes : int
+    synth_samples : int
+        Number of unique synthetic vessel label tensors to use.
+    synth_parenchyma_classes : int
         Sampler upper bound for number of classes of parenchyma/neural tissue.
-    parenchyma_shape : int
+    synth_parenchyma_shape : int
         Sampler upper bound for number of control points in a given
         parenchyma class.
-    gamma : list
+    synth_image_gamma : list
         Sampler bounds for non-linear contrast adjustment/stretch.
         Larger values increase contrast whereas lower values decrease contrast.
-    z_decay : list
+    synth_image_z_decay : list
         Z decay upper bound
-    speckle : list
+    synth_image_speckle : list
         Sampler bounds for speckle noise parameters.
-    vessel_intensity : list
+    synth_vessel_intensity : list
         Sampler bounds for weighted blending of vessels onto parenchyma.
-    vessel_texture : bool
+    synth_vessel_texture : bool
         Apply intra-vascular textures/artifacts.
-    spheres : bool
+    synth_image_spheres : bool
         Apply sphere artifacts to image.
-    slabwise_banding : bool
+    synth_image_banding : bool
         Apply slabwise banding (z-decay) artifact to the image.
-    dc_offset : bool
+    synth_image_dc_offset : bool
         Add a small value to the parenchyma tensor.
     """
     from oct_vesselseg.models import UnetWrapper
     synth_params = {
         "parenchyma": {
-            "nb_classes": parenchyma_classes,
-            "shape": parenchyma_shape
+            "nb_classes": synth_parenchyma_classes,
+            "shape": synth_parenchyma_shape
         },
-        "gamma": gamma,
-        "z_decay": [z_decay],
-        "speckle": speckle,
-        "imin": vessel_intensity[0],
-        "imax": vessel_intensity[1],
-        "vessel_texture": vessel_texture,
-        "spheres": spheres,
-        "slabwise_banding": slabwise_banding,
-        "dc_offset": dc_offset
-    }
+        "gamma": synth_image_gamma,
+        "z_decay": [synth_image_z_decay],
+        "speckle": synth_image_speckle,
+        "imin": synth_vessel_intensity[0],
+        "imax": synth_vessel_intensity[1],
+        "vessel_texture": synth_vessel_texture,
+        "spheres": synth_image_spheres,
+        "slabwise_banding": synth_image_banding,
+        "dc_offset": synth_image_dc_offset
+        }
 
     # Init a new Unet
     unet = UnetWrapper(
-        version_n=model_version,
+        version_n=model_version_n,
         synth_params=synth_params,
         model_dir=model_dir,
-        learning_rate=lr
+        learning_rate=training_lr
         )
     unet.new(
         nb_levels=model_levels,
@@ -298,19 +301,19 @@ def train(model_version: int = 1,
         dropout=0,
         augmentation=True)
 
-    n_train = n_volumes*train_to_val
-    epochs = int((n_steps * batch_size) // n_train)
+    n_train = synth_samples * training_train_to_val
+    epochs = int((training_steps * training_batch_size) // n_train)
     print(f'Training for {epochs} epochs')
     unet.train_it(
-        data_experiment_number=exp,
+        data_experiment_number=synth_data_experiment_n,
         epochs=epochs,
-        batch_size=batch_size,
-        train_to_val=train_to_val
+        batch_size=training_batch_size,
+        train_to_val=training_train_to_val
     )
 
 
 @app.command()
-def test(in_path: str, model_version: int = 1, model_dir: str = 'models',
+def test(in_path: str, model_version_n: int = 1, model_dir: str = 'models',
          patch_size: int = 128, redundancy: int = 3, checkpoint: str = 'best',
          padding_method: str = 'reflect', normalize_patches: bool = True
          ):
@@ -322,7 +325,7 @@ def test(in_path: str, model_version: int = 1, model_dir: str = 'models',
     in_path : str
         Path to stitched OCT mus data in NIfTI format. Can test on many
         different input files by seperating paths by commas.
-    model_version : int
+    model_version_n : int
         Version number of the model to test.
     model_dir : str
         Directory within output folder containing model versions.
@@ -353,7 +356,7 @@ def test(in_path: str, model_version: int = 1, model_dir: str = 'models',
         for path in in_path:
             # Init the unet
             unet = UnetWrapper(
-                version_n=model_version,
+                version_n=model_version_n,
                 model_dir=model_dir,
                 device='cuda'
                 )

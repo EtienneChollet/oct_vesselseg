@@ -355,7 +355,7 @@ class UnetWrapper(nn.Module):
         utils.JsonTools(self.json_path).log(backbone_dict)
         self.trainee = self.load(backbone_dict, augmentation)
 
-    def train_it(self, data_experiment_number, train_to_val: float = 0.8,
+    def train_it(self, data_experiment, train_to_val: float = 0.8,
                  batch_size: int = 1, epochs=1000,
                  check_val_every_n_epoch: int = 1,
                  accumulate_gradient_n_batches: int = 1, num_workers: int = 1):
@@ -364,7 +364,7 @@ class UnetWrapper(nn.Module):
 
         Parameters
         ----------
-        data_experiment_number : int
+        data_experiment : int
             Dataset that will be used for training model.
         train_to_val : float
             Ratio of training data to validation data for training loop.
@@ -385,7 +385,7 @@ class UnetWrapper(nn.Module):
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.accumulate_gradient_n_batches = accumulate_gradient_n_batches
         self.num_workers = num_workers
-        self.exp_path = f'output/synthetic_data/exp{data_experiment_number:04d}'
+        self.exp_path = f'output/synthetic_data/exp{data_experiment:04d}'
         # Init dataset
         dataset = VesselLabelDataset(inputs=f'{self.exp_path}/*label*')
         # Splitting up train and val sets
