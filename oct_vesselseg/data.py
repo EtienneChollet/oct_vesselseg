@@ -23,7 +23,7 @@ from oct_vesselseg.utils import Options
 
 class RealOct(object):
     """
-    Base class for real OCT volumetric data.
+    Base class for volumetric sOCT data (mus).
     """
     def __init__(
         self,
@@ -299,13 +299,16 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
     Parameters
     ----------
     trainee : Optional[torch.nn.Module], default None
-        The model used for predictions. If provided, it must be a PyTorch model.
+        The model used for predictions. If provided, it must be a PyTorch
+        model.
     normalize_patches : bool, optional, default True
         Whether to normalize patches before prediction.
     *args
-        Variable length argument list, passed to the superclass `RealOctPatchLoader`.
+        Variable length argument list, passed to the superclass
+        `RealOctPatchLoader`.
     **kwargs
-        Arbitrary keyword arguments, including all valid parameters of the `RealOct` class:
+        Arbitrary keyword arguments, including all valid parameters of the
+        `RealOct` class:
         - input : Union[torch.Tensor, str]
             Input tensor or path to a NIfTI file.
         - patch_size : int
@@ -349,13 +352,16 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         Parameters
         ----------
         trainee : Optional[torch.nn.Module], default None
-            The model used for predictions. If provided, it must be a PyTorch model.
+            The model used for predictions. If provided, it must be a PyTorch
+            model.
         normalize_patches : bool, optional, default True
             Whether to normalize patches before prediction.
         *args
-            Variable length argument list, passed to the superclass `RealOctPatchLoader`.
+            Variable length argument list, passed to the superclass
+            `RealOctPatchLoader`.
         **kwargs
-            Arbitrary keyword arguments, including all valid parameters of the `RealOct` class:
+            Arbitrary keyword arguments, including all valid parameters of the
+            `RealOct` class:
             - input : Union[torch.Tensor, str]
                 Input tensor or path to a NIfTI file.
             - patch_size : int
@@ -382,8 +388,8 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         imprint_tensor : torch.Tensor
             Stores accumulated prediction outputs for the entire volume.
         patch_weight : torch.Tensor
-            A 3D tensor that applies a sine-weighted attenuation to the prediction
-            outputs to smooth the transitions between patches.
+            A 3D tensor that applies a sine-weighted attenuation to the
+            prediction outputs to smooth the transitions between patches.
         """
         super().__init__(*args, **kwargs)
         # Set the configuration for tensors

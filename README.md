@@ -1,6 +1,6 @@
 # oct_vesselseg
 
-This repository contains an implementation of computational geometry and domain randomization for synthesizing vascular structures and Optical Coherence Tomography (OCT) data. The project is inspired by the concepts and methodologies described in the [SynthSeg](https://github.com/BBillot/SynthSeg) project, adapted to the domain of vascular imaging.
+Characterized by minimal priors and high variance sampling, this project builds on the emerging field of synthesis-based training by proposing an entirely data-free synthesis engine for training a Unet in the task of vascular labeling in sOCT data (mus modality). This project employs domain-randomized synthesis to create structured vessel and neural parenchyma labels, textures, and artifacts. It creates volumetric imaging data *similar* to, but not emulative of 3D sOCT data, with corresponding (perfect) ground truth labels for vasculature. The package contains a training module employing an on-the-fly image synthesis procedure to create a virtually infinite number of unique volumetric training data.
 
 # Table of Contents
 
