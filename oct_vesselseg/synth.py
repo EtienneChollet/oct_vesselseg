@@ -441,7 +441,7 @@ class ImageSynthEngineWrapper(Dataset):
                  save_fig: bool = False
                  ):
         """
-        Initialize the dataset for synthesizing OCT volumetric images.
+        Initialize the dataset for synthesizing volumetric OCT images.
 
         Parameters
         ----------
@@ -467,6 +467,8 @@ class ImageSynthEngineWrapper(Dataset):
         self.save_nifti = save_nifti
         self.make_fig = make_fig
         self.save_fig = save_fig
+
+        print(self.exp_path)
 
         # Set backend
         self.backend = dict(dtype=torch.float32, device=device)
@@ -537,7 +539,7 @@ class ImageSynthEngineWrapper(Dataset):
         if self.save_nifti is True:
             plt.savefig(f"{self.sample_fig_dir}/{volume_name}.png")
 
-        return im.unsqueeze(0), prob.unsqueeze(0)
+        # return im.unsqueeze(0), prob.unsqueeze(0)
 
     def _make_fig(self, im: np.ndarray, prob: np.ndarray) -> None:
         """

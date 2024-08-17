@@ -190,7 +190,7 @@ def imagesynth(data_experiment_n: int = 1,
     }
     vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
     synth = ImageSynthEngineWrapper(
-        exp_path=f"{vesselseg_outdir}/synthetic_data/{data_experiment_n:04}",
+        exp_path=f"{vesselseg_outdir}/synthetic_data/exp{data_experiment_n:04}",
         synth_params=synth_params,
         save_nifti=True,
         save_fig=True
@@ -305,7 +305,7 @@ def train(
     epochs = int((training_steps * training_batch_size) // n_train)
     print(f'Training for {epochs} epochs')
     unet.train_it(
-        data_experiment_number=synth_data_experiment_n,
+        synth_data_experiment_n=synth_data_experiment_n,
         epochs=epochs,
         batch_size=training_batch_size,
         train_to_val=training_train_to_val
