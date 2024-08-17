@@ -1,3 +1,4 @@
+import os
 from cyclopts import App
 import warnings
 
@@ -11,7 +12,6 @@ def configure():
     """
     Configures ~/.bashrc for oct_vesselseg project by setting OCT_VESSELSEG_BASE_DIR environment variable to specified directory.
     """
-    import os
     variable_name = 'OCT_VESSELSEG_BASE_DIR'
     bashrc_path = os.path.expanduser("~/.bashrc")
     # Collect user input
@@ -146,8 +146,7 @@ def imagesynth(data_experiment_n: int = 1,
     Parameters
     ----------
     data_experiment_n : int
-        Data experiment number for loading and volumetric data and synthesis
-        description.
+        Data experiment number for loading and volumetric data.
     n_samples : int
         Number of samples to synthesize and save to data experiment.
     parenchyma_classes : int
@@ -189,8 +188,9 @@ def imagesynth(data_experiment_n: int = 1,
         "slabwise_banding": image_banding,
         "dc_offset": image_dc_offset
     }
+    vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
     synth = ImageSynthEngineWrapper(
-        exp_path=f"output/synthetic_data/{data_experiment_n:04}",
+        exp_path=f"{vesselseg_outdir}/synthetic_data/{data_experiment_n:04}",
         synth_params=synth_params,
         save_nifti=True,
         save_fig=True

@@ -5,6 +5,7 @@ __all__ = [
 ]
 
 # Standard Imports
+import os
 import torch
 from torch import nn
 from pytorch_lightning import Trainer
@@ -26,6 +27,9 @@ def _init_from_defaults(self, **kwargs):
             kwargs.setdefault(key, value)
     for key, value in kwargs.items():
         setattr(self, key, value)
+
+
+vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
 
 
 class SegNet(nn.Sequential):
@@ -229,7 +233,7 @@ class UnetWrapper(nn.Module):
         self.model_dir = model_dir
         self.device = device
         self.synth_params = synth_params
-        self.output_path = "output"
+        self.output_path = vesselseg_outdir
         self.version_path = f"{self.output_path}/{model_dir}"\
                             f"/version_{version_n}"
         self.json_path = (
@@ -385,7 +389,8 @@ class UnetWrapper(nn.Module):
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.accumulate_gradient_n_batches = accumulate_gradient_n_batches
         self.num_workers = num_workers
-        self.exp_path = f'output/synthetic_data/exp{data_experiment:04d}'
+        self.exp_path = (f'{vesselseg_outdir}/synthetic_data'
+                         f'/exp{data_experiment:04d}')
         # Init dataset
         dataset = VesselLabelDataset(inputs=f'{self.exp_path}/*label*')
         # Splitting up train and val sets

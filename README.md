@@ -54,10 +54,10 @@ We need to identify and set our cuda version to make sure we install the right p
 export CUDA_VERSION=<cuda-version>
 ```
 
-Finally, we can install oct_tissuemasking (this might take a while so let's set the default timeout to 20,000 seconds).
+Finally, we can install oct_vesselseg.
 
 ```bash
-pip install oct_tissuemasking --default-timeout=20000
+pip install oct_vesselseg
 ```
 
 ## Configuration

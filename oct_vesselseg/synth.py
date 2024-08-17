@@ -50,6 +50,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
+
+
 class VesselSynthEngineOCT(SynthSplineBlock):
     """Default parameters for SynthVesselOCT."""
 
@@ -93,7 +96,7 @@ class VesselSynthEngineWrapper(object):
         ----------
         experiment_dir : str, optional
             Directory for output of synthesis experiments, default is
-            'synthetic_data' (which is found in oct_vesselseeg/output).
+            'synthetic_data' (which is found in OCT_VESSELSEG_BASE_DIR).
         experiment_number : int, optional
             Identifier for the synthesis experiment, default is 1. (exp0001)
         synth_engine : SynthSplineBlock, optional
@@ -108,8 +111,9 @@ class VesselSynthEngineWrapper(object):
         self.shape = synth_engine.shape
         self.n_volumes = n_volumes
         # Output path for the synthesis experiment
-        self.experiment_path = (f"output/{experiment_dir}/"
-                                f"exp{experiment_number:04d}")
+        self.experiment_path = (
+            f"{vesselseg_outdir}/{experiment_dir}/"
+            f"exp{experiment_number:04d}")
         # Create directory for output of synthesis experiment
         # (empty it if it exists)
         PathTools(self.experiment_path).makeDir()
