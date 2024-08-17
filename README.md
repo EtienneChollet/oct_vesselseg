@@ -19,13 +19,13 @@ Characterized by minimal priors and high variance sampling, this project builds 
 
 # Introduction
 
-This project focuses on generating synthetic datasets for training a 3D U-Net for the task of vasculature segmentation in OCT data. Using a cubic spline synthesis pipeline first established in [SynthSpline](https://github.com/balbasty/synthspline), and many data augmentation techniques from [Cornucopia](https://github.com/balbasty/cornucopia) this project employs domain-randomized synthesis to create structured labels, textures, and artifacts, enhancing the training of neural networks for vascular segmentation.
+This project focuses on generating synthetic datasets for training a 3D U-Net in the task of vasculature segmentation in OCT data. Using a cubic spline synthesis pipeline first established in [SynthSpline](https://github.com/balbasty/synthspline), and many data augmentation techniques from [Cornucopia](https://github.com/balbasty/cornucopia), this project employs domain-randomized synthesis to create structured labels, textures, and artifacts, enhancing the training of neural networks for vascular segmentation.
 
 ## Check out our papers!
 
-📜 July 2024: [Long paper preprint](https://arxiv.org/abs/2407.01419v1)
+📜 July 2024: [Journal Article Preprint](https://arxiv.org/abs/2407.01419v1)
 
-📜 April 2024: [Short paper preprint from Medical Imaging with Deep Learning Conference](https://arxiv.org/abs/2405.13757v1)
+📜 April 2024: [Conference/Short paper from Medical Imaging with Deep Learning Conference](https://openreview.net/forum?id=j8v7qc5bof&referrer=%5Bthe%20profile%20of%20Etienne%20Chollet%5D(%2Fprofile%3Fid%3D~Etienne_Chollet1))
 
 ![Pipeline](docs/pipeline.png "Synthesis, Training, and Inference Pipeline")
 
@@ -38,8 +38,8 @@ Hard requirements include `Cppyy~=2.3` and `Python~=3.9`
 It is suggested that you create and activate a new mamba environment with python 3.9. You can learn how to install mamba by following the instructions provided in the [Miniforge repo](https://github.com/conda-forge/miniforge).
 
 ```bash
-mamba create -n oct_tissuemasking python=3.9
-mamba activate oct_tissuemasking
+mamba create -n oct_vesselseg python=3.9
+mamba activate oct_vesselseg
 ```
 
 In order to synthesize vascular labels from splines, we will need to install the code from the synthspline repo.
@@ -48,13 +48,13 @@ In order to synthesize vascular labels from splines, we will need to install the
 pip install git+https://github.com/balbasty/synthspline.git#f78ba23
 ```
 
-We need to identify and set our cuda version to make sure we install the right prebuilt wheel for cupy. You can find your cuda version by running the command `nvcc --version`.
+We need to identify and set our cuda version to make sure we install the right prebuilt wheel for cupy. You can find your cuda version by running the command `nvcc --version` or `nvidia-smi`.
 
 ```bash
-export CUDA_VERSION=<cuda-version>
+export CUDA_VERSION=<cuda-version>  # OR nvidia-smi
 ```
 
-Finally, we can install oct_vesselseg.
+Finally, we can install oct_vesselseg from pypi.
 
 ```bash
 pip install oct_vesselseg
@@ -62,10 +62,10 @@ pip install oct_vesselseg
 
 ## Configuration
 
-Identify the directory you want all oct_vesselseg related files to go into (you might need to make a new directory), and run the following command. This will add a line to your ~/.bashrc file to set a global environment variable `OCT_VESSELSEG_BASE_DIR`. I recommend this to be an empty directory (or if you specify a non-existent directory, one will be made for you).
+Identify the directory you want all oct_vesselseg related files to go into (you might need to make a new directory), and run the following command. This will add a line to your ~/.bashrc file to set a global environment variable `OCT_VESSELSEG_BASE_DIR`. I recommend this to be an empty directory (or if you specify a non-existent directory, one will be made for you). *PLEASE ENSURE IT IS A FULL (ABSOLUTE) PATH*
 
 ```bash
-oct_vesselsynth configure
+oct_vesselseg configure
 ```
 
 # Usage

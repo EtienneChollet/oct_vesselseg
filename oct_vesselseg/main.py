@@ -15,8 +15,8 @@ def configure():
     variable_name = 'OCT_VESSELSEG_BASE_DIR'
     bashrc_path = os.path.expanduser("~/.bashrc")
     # Collect user input
-    print('Please enter the path to the output directory for oct_vesselseg')
-    oct_vesselseg_base_dir = input('> ')
+    print('Please enter the FULL path to the output directory for oct_vesselseg')
+    oct_vesselseg_base_dir = input('> ').rstrip('/')
 
     # Check if the base directory exists, create it if it doesn't
     if not os.path.exists(oct_vesselseg_base_dir):
