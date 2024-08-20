@@ -46,6 +46,7 @@ setup(
         'tensorboard',
         'pandas',
         'cyclopts'
+        'cornucopia',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
