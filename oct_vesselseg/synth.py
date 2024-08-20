@@ -227,6 +227,7 @@ class ImageSynthEngineOCT(nn.Module):
         """
         Setup and initialize synthesis parameters
         """
+        self.random_vessel_ablation = self.synth_params['random_vessel_ablation']
         self.speckle_a = float(self.synth_params.get('speckle')[0])
         self.speckle_b = float(self.synth_params['speckle'][1])
         self.gamma_a = float(self.synth_params['gamma'][0])
@@ -261,19 +262,24 @@ class ImageSynthEngineOCT(nn.Module):
                 vessel_labels_tensor.zero_()
                 n_unique_ids = 0
             else:
-                # Hide some vessels randomly
-                n_unique_ids = len(vessel_labels)
-                number_vessels_to_hide = torch.randint(
-                    n_unique_ids//10,
-                    n_unique_ids-1, [1]
-                    ).item()
-                vessel_ids_to_hide = vessel_labels[
-                    torch.randperm(n_unique_ids)[:number_vessels_to_hide]]
-                for vessel_id in vessel_ids_to_hide:
-                    vessel_labels_tensor[vessel_labels_tensor == vessel_id] = 0
+                if self.random_vessel_ablation:
+                    # Hide some vessels randomly
+                    n_unique_ids = len(vessel_labels)
+                    number_vessels_to_hide = torch.randint(
+                        n_unique_ids//10,
+                        n_unique_ids-1, [1]
+                        ).item()
+                    vessel_ids_to_hide = vessel_labels[
+                        torch.randperm(n_unique_ids)[:number_vessels_to_hide]]
+                    for vessel_id in vessel_ids_to_hide:
+                        vessel_labels_tensor[vessel_labels_tensor == vessel_id] = 0
+                else:
+                    n_unique_ids = len(vessel_labels)
         else:
             vessel_labels_tensor.zero_()
             n_unique_ids = 0
+
+        vessel_mask = torch.clone(vessel_labels_tensor > 0)
 
         # Synthesize the parenchyma (background tissue)
         parenchyma = self.parenchyma_(vessel_labels_tensor)
@@ -290,12 +296,17 @@ class ImageSynthEngineOCT(nn.Module):
             if self.synth_params['vessel_texture'] is True:
                 # Texturize those vessels!!!
                 vessel_texture = self.vessel_texture_(vessel_labels_tensor)
-                vessels[vessel_labels_tensor > 0] *= vessel_texture[
-                    vessel_labels_tensor > 0
-                    ]
-            final_volume[vessel_labels_tensor > 0] *= vessels[
-                    vessel_labels_tensor > 0
-                    ]
+                vessels[vessel_mask] *= vessel_texture[vessel_mask]
+            # Blending
+            alpha = 0.5
+            blended_values = torch.clone(final_volume)
+            blended_values[vessel_mask] = alpha * vessels[vessel_mask] + (1 - alpha) * final_volume[vessel_mask]
+
+            # Ensure vessels are always darker
+            final_volume[vessel_mask] = torch.min(blended_values[vessel_mask], final_volume[vessel_mask] * vessels[vessel_mask])
+
+            # final_volume[vessel_mask] *= vessels[vessel_mask]
+
         # Normalizing
         final_volume = QuantileTransform()(final_volume)
         # Convert to same dtype as model weights

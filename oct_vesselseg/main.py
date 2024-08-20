@@ -133,6 +133,7 @@ def imagesynth(data_experiment_n: int = 1,
                parenchyma_shape: int = 10,
                vessel_intensity: tuple[float, float] = [0.01, 0.8],
                vessel_texture: bool = True,
+               vessel_random_ablation: bool = True,
                image_gamma: tuple[float, float] = [0.2, 2],
                image_z_decay: int = 32,
                image_speckle: tuple[float, float] = [0.2, 0.8],
@@ -165,6 +166,8 @@ def imagesynth(data_experiment_n: int = 1,
         Sampler bounds for weighted blending of vessels onto parenchyma.
     vessel_texture : bool
         Apply intra-vascular textures/artifacts.
+    vessel_random_ablation : bool
+        Optionally ablate vessels randomly.
     image_spheres : bool
         Apply sphere artifacts to image.
     image_banding : bool
@@ -178,6 +181,7 @@ def imagesynth(data_experiment_n: int = 1,
             "nb_classes": parenchyma_classes,
             "shape": parenchyma_shape
         },
+        "random_vessel_ablation": vessel_random_ablation,
         "gamma": image_gamma,
         "z_decay": [image_z_decay],
         "speckle": image_speckle,
