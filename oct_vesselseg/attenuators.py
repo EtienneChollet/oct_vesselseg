@@ -1,5 +1,6 @@
 __all__ = [
-    "SinusoidalAttenuator"
+    "SinusoidalAttenuator",
+    "ExponentialAttenuator"
 ]
 
 import torch
@@ -82,5 +83,70 @@ class SinusoidalAttenuator(nn.Module):
         return attenuator_nd
 
 # Example for 3d attenuator generation and visualization
-# attenuator = SinusoidalAttenuator(size=128, dimensions=3)()
-# plt.imshow(attenuator[64])
+# attenuator = SinusoidalAttenuator(size=128, dimensions=1)()
+# x = torch.arange(len(attenuator))
+# plt.plot(x, attenuator)
+
+
+class ExponentialAttenuator(nn.Module):
+    """
+    A PyTorch module for generating an exponential patch attenuator in n
+    dimensions.
+
+    Parameters
+    ----------
+    size : int
+        Size of each dimension for attenuator. All dimensions are assumed to
+        have equal sides.
+    dimensions : int
+        Number of dimensions for attenuator.
+    decay_rate : float
+        The rate at which the attenuation decreases ()
+    """
+    def __init__(self, size: int = 128, dimensions: int = 3,
+                 decay_rate: float = 2.0):
+        super().__init__()
+        self.size = size
+        self.dimensions = dimensions
+        self.decay_rate = decay_rate
+
+    def forward(self):
+        """
+        Forward pass to generate the exponential patch attenuator.
+
+        Returns
+        -------
+        torch.Tensor
+            The n-dimensional exponential attenuator.
+        """
+        return self.make_attenuator()
+
+    def make_attenuator(self):
+        """
+        Generate the sinusoidal patch attenuator.
+
+        Returns
+        -------
+        torch.Tensor
+            The n-dimensional sinusoidal attenuator.
+        """
+        # Make the domain of the sin function. (only half so we can mirror)
+        x = torch.linspace(0, 1, self.size // 2)
+        # Mirror
+        x = torch.cat([x.flip(-1), x])
+        # Apply exponential to prodiuct of rate decay and the domain
+        y = torch.exp(-self.decay_rate * x)
+        # Normalize!
+        y -= y.min()
+        y /= y.max()
+
+        # Make the attenuator in n dimensions
+        attenuator_nd = torch.clone(y)
+        for _ in range(1, self.dimensions):
+            attenuator_nd = attenuator_nd.unsqueeze(-1) * y
+        return attenuator_nd
+
+# Example for 3d attenuator generation and visualization
+# attenuator = ExponentialAttenuator(size=128, dimensions=1)()
+# x = torch.arange(len(attenuator))
+# plt.plot(x, attenuator)
