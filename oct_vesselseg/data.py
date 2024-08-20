@@ -19,6 +19,7 @@ from typing import Union, Optional, Tuple
 
 # Local application/library specific imports
 from oct_vesselseg.utils import Options
+from oct_vesselseg.attenuators import SinusoidalAttenuator
 
 
 class RealOct(object):
@@ -398,45 +399,13 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         self.trainee = trainee.eval() if trainee else None
         # Initialize the imprint tensor with zeros
         self.imprint_tensor = torch.zeros(self.tensor.shape, **self.backend)
+        # Initialize weight tracker
+        self.weight_tracker = torch.zeros(self.tensor.shape, **self.backend)
         # Set normalization flag
         self.normalize_patches = normalize_patches
         # Prepare the 3D sine-weighted attenuation kernel
-        self.patch_attenuator = self._prepare_patch_attenuator()
-
-    def _prepare_patch_attenuator(self, max_attenuation: float = 0.5
-                                  ) -> torch.Tensor:
-        """
-        Create a 3D patch weight by the outer product of a 1D
-        sine-weighted filter.
-
-        Parameters
-        ----------
-        max_attenuation : float, optional
-            Maximum attenuation (minimum value) for the sine attenuator,
-            by default, 0.5.
-
-        Returns
-        -------
-        torch.Tensor
-            3D sine-weighted tensor for patch attenuation.
-        """
-        # Create half of a 1D sine wave attenuator ranging from
-        # max_attenuation (smallest value) to sin(pi/2) (least [no]
-        # attenuation)
-        half_attenuator_1d = torch.linspace(
-            max_attenuation, torch.pi/2, self.patch_size // 2,
-            device=self.backend['device']).sin()
-        # Create a complete 1D sine wave attenuator by mirroring the
-        # half_attenuator_1d tensor
-        attenuator_1d = torch.concat(
-            [half_attenuator_1d, half_attenuator_1d.flip(0)])
-        # Create the 3D sine-weighted attenuation tensor by applying
-        # attenuator_1d to all dimensions
-        attenuator_3d = (
-            attenuator_1d[:, None, None]
-            * attenuator_1d[None, :, None]
-            * attenuator_1d[None, None, :]).cuda()
-        return attenuator_3d
+        self.patch_attenuator = SinusoidalAttenuator(
+            size=self.patch_size, dimensions=3)().cuda()
 
     def __getitem__(self, idx: int):
         """
@@ -461,8 +430,7 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
             if self.normalize_patches is True:
                 try:
                     patch = QuantileTransform(
-                        vmin=0.2, vmax=0.8)(patch.float()
-                                            )
+                        vmin=0.2, vmax=0.8)(patch.float())
                 except ValueError as e:
                     print(
                         f"ValueError: {e}. Quantile transform failed.")
@@ -473,13 +441,19 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
             # Apply sigmoid activation to logits
             prediction = torch.sigmoid(prediction).squeeze()
             # Weight the prediction by applying sine-weighted attenuation
+            # prediction = torch.ones(128, 128, 128).cuda().float()
             weighted_prediction = (
                 prediction * self.patch_attenuator
                 )
+
             # Add attenuatied probabilities to imprint tensor
             self.imprint_tensor[
                 coords[0], coords[1], coords[2]
                 ] += weighted_prediction
+
+            # Add attenuation signature to the weight tracker
+            self.weight_tracker[
+                coords[0], coords[1], coords[2]] += self.patch_attenuator
 
     def predict_on_all(self):
         """
@@ -514,6 +488,7 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         # Remove padding from the imprint tensor
         s = slice(self.patch_size, -self.patch_size)
         self.imprint_tensor = self.imprint_tensor[s, s, s]
+        self.weight_tracker = self.weight_tracker[s, s, s]
         # Calculate redundancy factor for averaging
         redundancy = ((self.patch_size ** 3) // (self.step_size ** 3))
 
@@ -521,7 +496,8 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
 
         # Average the imprint tensor to account for redundancy in
         # overlapped predictions
-        self.imprint_tensor /= redundancy
+        self.imprint_tensor /= self.weight_tracker
+        # self.imprint_tensor /= redundancy
         self.imprint_tensor = self.imprint_tensor.cpu().numpy()
 
     def save_prediction(self, dir=None):
