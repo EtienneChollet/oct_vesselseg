@@ -10,12 +10,14 @@ app = App()
 @app.command()
 def configure():
     """
-    Configures ~/.bashrc for oct_vesselseg project by setting OCT_VESSELSEG_BASE_DIR environment variable to specified directory.
+    Configures ~/.bashrc for oct_vesselseg project by setting \\
+    OCT_VESSELSEG_BASE_DIR environment variable to specified directory.
     """
     variable_name = 'OCT_VESSELSEG_BASE_DIR'
     bashrc_path = os.path.expanduser("~/.bashrc")
     # Collect user input
-    print('Please enter the FULL path to the output directory for oct_vesselseg')
+    print('Please enter the FULL path to the output directory for '
+          'oct_vesselseg')
     oct_vesselseg_base_dir = input('> ').rstrip('/')
 
     # Check if the base directory exists, create it if it doesn't
@@ -71,7 +73,8 @@ def vesselsynth(data_experiment_n: int = 1,
                 device: str = 'cuda'
                 ):
     """
-    Synthesize volumetric vessel labels with morphological parameters by sampling probability density functions.
+    Synthesize volumetric vessel labels with morphological parameters by \\
+    sampling probability density functions.
 
     Parameters
     ----------
@@ -142,7 +145,8 @@ def imagesynth(data_experiment_n: int = 1,
                image_dc_offset: bool = True
                ):
     """
-    Synthesize OCT images with optional noise/artifact models and save in synthetic experiment directory.
+    Synthesize OCT images with optional noise/artifact models and save in \\
+    synthetic experiment directory.
 
     Parameters
     ----------
@@ -192,9 +196,11 @@ def imagesynth(data_experiment_n: int = 1,
         "slabwise_banding": image_banding,
         "dc_offset": image_dc_offset
     }
+
     vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
     synth = ImageSynthEngineWrapper(
-        exp_path=f"{vesselseg_outdir}/synthetic_data/exp{data_experiment_n:04}",
+        exp_path=(f"{vesselseg_outdir}/synthetic_data/"
+                  "exp{data_experiment_n:04}"),
         synth_params=synth_params,
         save_nifti=True,
         save_fig=True
