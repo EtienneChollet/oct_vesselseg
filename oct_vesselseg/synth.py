@@ -34,6 +34,7 @@ from SynthShapes.utils import MinMaxScaler
 import SynthShapes.blending
 import SynthShapes.utils
 from SynthShapes import filters
+from SynthShapes.shapes import MultiLobeBlobAugmentation, TorusBlobAugmentation
 
 # Setup logging
 logging.basicConfig(
@@ -217,7 +218,6 @@ class ImageSynthEngineOCT(nn.Module):
         # device if torch.cuda.is_available() else 'cpu')
         self.backend = dict(device=self.device, dtype=self.dtype)
         self.setup_parameters()
-        self._local_intensity_module = self._get_local_intensity_module()
 
     def setup_parameters(self):
         """
@@ -233,13 +233,6 @@ class ImageSynthEngineOCT(nn.Module):
         self.shape_ = int(self.synth_params['parenchyma']['shape'])
         self.i_max = float(self.synth_params['imax'])
         self.i_min = float(self.synth_params['imin'])
-
-    def _get_local_intensity_module(self):
-        local_intensity_module = torch.nn.Sequential(
-            filters.MinimumFilter3D(),
-            filters.GaussianSmoothing3D()
-        ).cuda()
-        return local_intensity_module
 
     def forward(self, vessel_labels_tensor: torch.Tensor) -> tuple:
         """
@@ -259,12 +252,12 @@ class ImageSynthEngineOCT(nn.Module):
         if vessel_labels.numel() >= 2:
             # n_unique_ids = 1
             # Randomly make a negative control
-            if False: # RandInt(1, 10)() == 7:
+            if False:  # RandInt(1, 10)() == 7:
                 # vessel_labels_tensor[vessel_labels_tensor > 0] = 0
                 vessel_labels_tensor.zero_()
                 n_unique_ids = 0
             else:
-                if self.random_vessel_ablation:
+                if False:  # self.random_vessel_ablation:
                     # Hide some vessels randomly
                     n_unique_ids = len(vessel_labels)
                     number__vesselsto_hide = torch.randint(
@@ -288,62 +281,36 @@ class ImageSynthEngineOCT(nn.Module):
             vessel_labels_tensor)
 
         # Optionally, add a DC offset to the parenchyma
-        if self.synth_params['dc_offset'] is True:
-            dc_offset = Uniform(0, 0.25)()
-            parenchyma += dc_offset
+        #if self.synth_params['dc_offset'] is True:
+        #    dc_offset = Uniform(0, 0.25)()
+        #    parenchyma += dc_offset
 
         final_volume = parenchyma.clone()
         # Determine if there are any vessels left
         if n_unique_ids > 0:
             # If so, synthesize them (grouped by intensity)
             vessels = self._vessels(vessel_labels_tensor)
-            if self.synth_params['vessel_texture'] is True:
-                # Texturize those vessels!!!
-                vessel_texture = self._vessel_texture(vessel_labels_tensor)
-                vessels[vessel_mask] *= vessel_texture[vessel_mask]
-            _parenchymalocal_intensity = self._local_intensity_module(
-                parenchyma)
-            vessels[~vessel_mask] = 0
-            vessels[vessel_mask] *= _parenchymalocal_intensity[vessel_mask]
-            vessels[vessel_mask] *= 0.5
-
-            blob_labels = SynthShapes.shapes.MultiLobedBlobSampler(
-                axis_length_range=[3, 10],
-                shape=128,
-                max_blobs=25,
-                sharpness=3)().unsqueeze(0).unsqueeze(0)
-
-            blob_intensities = SynthShapes.texturizing.LabelsToIntensities(
-                max=0.25)(blob_labels)
-
-            # Sampling toroids with batch and channel dimensions(B, C, D, H, W)
-            torus_labels = SynthShapes.shapes.TorusBlobSampler(
-                shape=128, max_blobs=25)().unsqueeze(0).unsqueeze(0)
-            torus_intensities = SynthShapes.texturizing.LabelsToIntensities(
-                max=0.25)(torus_labels)
-
-            final_volume = SynthShapes.blending.Blender()(
-                final_volume, blob_intensities, alpha=cc.Uniform(0, 0.5)())
-
-            final_volume = SynthShapes.blending.Blender()(
-                final_volume, torus_intensities, alpha=cc.Uniform(0, 0.5)())
-
             before_blending = torch.clone(final_volume)
             final_volume = SynthShapes.blending.Blender()(
-                final_volume, vessels, alpha=cc.Uniform(0, 0.5)())
-
+                vessels, final_volume, mask=vessel_mask,
+                alpha=cc.Uniform(0.25, 0.75)()
+                )
             diff = before_blending[vessel_mask] - final_volume[vessel_mask]
 
             min_diff = diff.min()
             if min_diff < 0:
-                final_volume[vessel_mask] += min_diff
-                final_volume[vessel_mask] -= Uniform(0.2, 0.5)()
+                voxels_to_fix = (diff < 0).bool()
+                random_values = torch.rand_like(diff) * voxels_to_fix.float()
+                final_volume[vessel_mask][voxels_to_fix] = random_values[
+                    voxels_to_fix]
             elif min_diff == 0:
-                final_volume[vessel_mask] += Uniform(0.2, 0.5)()
+                voxels_to_fix = (diff == 0).bool()
+                random_values = torch.rand_like(diff) * voxels_to_fix.float()
+                final_volume[vessel_mask][voxels_to_fix] -= random_values[
+                    voxels_to_fix]
 
         # Normalizing
         final_volume = cc.QuantileTransform()(final_volume)
-
         # Convert to same dtype as model weights
         final_volume = final_volume.to(torch.float32)
         # Convert one-hot encoded vessels to binary label map
@@ -368,34 +335,23 @@ class ImageSynthEngineOCT(nn.Module):
         """
         # Create label map containing unique parenchymal regions with
         # unique IDs.
-        background_label_map = cc.RandomSmoothLabelMap(
+        parenchyma = cc.RandomSmoothLabelMap(
             nb_classes=RandInt(2, self.nb_classes_)(),
             shape=RandInt(2, self.shape_)(),
             # Add 1 to work w/ every pixel (no 0s)
             )(vessel_labels_tensor).to(self.device) + 1
 
-        background_label_ids = torch.unique(background_label_map)
-
         self._parenchymatransform = torch.nn.Sequential(
             cc.RandomGaussianMixtureTransform(mu=1, sigma=2),
-            MinMaxScaler(),
+            # cc.QuantileTransform(),
             cc.RandomGammaNoiseTransform(),
-            MinMaxScaler(),
+            cc.QuantileTransform(),
             cc.MulFieldTransform(vmin=0.1, vmax=0.75),
-            MinMaxScaler(),
-            # cc.QuantileTransform()
+            cc.QuantileTransform(),
+            MultiLobeBlobAugmentation(max_blobs=50),
+            TorusBlobAugmentation(max_blobs=50),
             )
-        parenchyma = self._parenchymatransform(background_label_map)
-
-        background_label_map = background_label_map.float()
-        for label in background_label_ids:
-            mask = (background_label_map == label).bool()
-            average_intensity = cc.Uniform(0, 1)()
-            background_label_map.masked_fill_(mask, average_intensity)
-            bls = parenchyma[mask] - background_label_map[mask]
-            parenchyma[mask] -= bls.mean()
-
-        return parenchyma
+        return self._parenchymatransform(parenchyma)
 
     def _vessels(self, vessel_labels_tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -412,15 +368,16 @@ class ImageSynthEngineOCT(nn.Module):
             dtype=self.dtype,
             device=vessel_labels_tensor.device)
         # Random factor for vessel texture intensity scaling
-        vessel_texture_fix_factor = Uniform(0.5, 1)()
+        # vessel_texture_fix_factor = 1 #Uniform(0.75, 1)()
         # Determine how many vessel labels to deal with (after random removal
         # from a previous step)
         vessel_labels_left = torch.unique(vessel_labels_tensor)
         # Iterate through unique vessel labels and assign intensities
         for int_n in vessel_labels_left:
             intensity = Uniform(self.i_min, self.i_max)()
-            scaling_tensor.masked_fill_(vessel_labels_tensor == int_n,
-                                        intensity * vessel_texture_fix_factor)
+            scaling_tensor.masked_fill_(
+                vessel_labels_tensor == int_n, intensity
+                )
         return scaling_tensor
 
     def _vessel_texture(self,
@@ -456,6 +413,7 @@ class ImageSynthEngineOCT(nn.Module):
         vessel_texture += 0.5
         vessel_texture.clamp_min_(0)
         return vessel_texture
+
 
 
 class ImageSynthEngineWrapper(Dataset):
@@ -544,7 +502,7 @@ class ImageSynthEngineWrapper(Dataset):
             **self.label_tensor_backend)
         # Reshape to have batch and channel dimensions (B, C, D, H, W)
         label_tensor = label_tensor.unsqueeze(0).unsqueeze(0)
-        
+
         # Clip the tensor values to a valid range and add a new dimension
         label_tensor = torch.clip(label_tensor, 0, 32767) # [None]
 
