@@ -47,6 +47,7 @@ setup(
         'pandas',
         'cyclopts'
         'cornucopia',
+        'SynthShapes'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

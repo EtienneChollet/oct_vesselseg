@@ -213,7 +213,6 @@ def imagesynth(data_experiment_n: int = 1,
 def train(
     model_version_n: int = 1,
     model_dir: str = 'models',
-    model_levels: int = 4,
     model_features: tuple[int] = [32, 64, 128, 256],
     training_lr: float = 1e-3,
     training_train_to_val: float = 0.8,
@@ -230,7 +229,8 @@ def train(
     synth_vessel_texture: bool = True,
     synth_image_spheres: bool = True,
     synth_image_banding: bool = True,
-    synth_image_dc_offset: bool = True
+    synth_image_dc_offset: bool = True,
+    dataset: str = None
         ):
     """
     Train a Unet with specified model and imagesynth parameters.
@@ -241,8 +241,6 @@ def train(
         Version number of the model to train.
     model_dir : str
         Directory within output folder to save model versions.
-    model_levels : int
-        Number of levels (encoding and decoding blocks) of the model.
     model_features : list
         List of number of features within the corresponging level of the model.
     training_lr : float
@@ -280,6 +278,9 @@ def train(
         Apply slabwise banding (z-decay) artifact to the image.
     synth_image_dc_offset : bool
         Add a small value to the parenchyma tensor.
+    dataset : str
+        Path to dataset directory with subdirectories 'x' and 'y' for input
+        and target, respectively.
     """
     from oct_vesselseg.models import UnetWrapper
     synth_params = {
@@ -306,7 +307,7 @@ def train(
         learning_rate=training_lr
         )
     unet.new(
-        nb_levels=model_levels,
+        nb_levels=len(model_features),
         nb_features=model_features,
         dropout=0,
         augmentation=True)

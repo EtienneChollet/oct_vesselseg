@@ -10,6 +10,8 @@ __all__ = [
 import os
 import json
 import glob
+import SynthShapes.shapes
+import SynthShapes.texturizing
 import torch
 import logging
 import numpy as np
@@ -19,26 +21,19 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
 
 # Balbasty imports
+import cornucopia as cc
 import nibabel as nib
 from synthspline.random import Uniform, RandInt, AnyVar
 from synthspline.utils import default_affine
 from synthspline.labelsynth import SynthSplineParameters, SynthSplineBlock
-from cornucopia.labels import (
-    RandomSmoothLabelMap,
-    BernoulliDiskTransform)
-from cornucopia import (
-    RandomSlicewiseMulFieldTransform,
-    RandomGammaTransform,
-    RandomGammaNoiseTransform,
-    RandomMulFieldTransform,
-    RandomGaussianMixtureTransform,
-    ElasticTransform,
-    QuantileTransform
-)
-from cornucopia.random import Fixed, Normal
 
 # Custom Imports
 from oct_vesselseg.utils import PathTools
+import SynthShapes
+from SynthShapes.utils import MinMaxScaler
+import SynthShapes.blending
+import SynthShapes.utils
+from SynthShapes import filters
 
 # Setup logging
 logging.basicConfig(
@@ -167,7 +162,7 @@ class VesselSynthEngineWrapper(object):
         nib.save(nib.Nifti1Image(
             volume.squeeze().cpu().numpy(), affine, self.header),
             (f'{self.experiment_path}/'
-             f'{volume_n:04d}_vessels_{volume_name}.nii.gz'))
+             f'{volume_n:04d}__vessels{volume_name}.nii.gz'))
         # TODO: Add logger
 
     def save_params(self, abspath: str):
@@ -218,16 +213,17 @@ class ImageSynthEngineOCT(nn.Module):
         """
         self.synth_params = synth_params
         self.dtype = dtype
-        self.device = device  # torch.device(
+        self.device = device
         # device if torch.cuda.is_available() else 'cpu')
         self.backend = dict(device=self.device, dtype=self.dtype)
         self.setup_parameters()
+        self._local_intensity_module = self._get_local_intensity_module()
 
     def setup_parameters(self):
         """
         Setup and initialize synthesis parameters
         """
-        self.random_vessel_ablation = self.synth_params['random_vessel_ablation']
+        self.random_vessel_ablation = True  # self.synth_params['random_vessel_ablation']
         self.speckle_a = float(self.synth_params.get('speckle')[0])
         self.speckle_b = float(self.synth_params['speckle'][1])
         self.gamma_a = float(self.synth_params['gamma'][0])
@@ -238,7 +234,13 @@ class ImageSynthEngineOCT(nn.Module):
         self.i_max = float(self.synth_params['imax'])
         self.i_min = float(self.synth_params['imin'])
 
-    # @autocast()  # Enables mixed precision for faster computation
+    def _get_local_intensity_module(self):
+        local_intensity_module = torch.nn.Sequential(
+            filters.MinimumFilter3D(),
+            filters.GaussianSmoothing3D()
+        ).cuda()
+        return local_intensity_module
+
     def forward(self, vessel_labels_tensor: torch.Tensor) -> tuple:
         """
         Generate OCT-like volumetric images.
@@ -254,10 +256,10 @@ class ImageSynthEngineOCT(nn.Module):
         vessel_labels = torch.unique(vessel_labels_tensor)
         vessel_labels = vessel_labels[vessel_labels != 0].to(self.device)
 
-        # Randomly make a negative control
         if vessel_labels.numel() >= 2:
             # n_unique_ids = 1
-            if RandInt(1, 10)() == 7:
+            # Randomly make a negative control
+            if False: # RandInt(1, 10)() == 7:
                 # vessel_labels_tensor[vessel_labels_tensor > 0] = 0
                 vessel_labels_tensor.zero_()
                 n_unique_ids = 0
@@ -265,12 +267,12 @@ class ImageSynthEngineOCT(nn.Module):
                 if self.random_vessel_ablation:
                     # Hide some vessels randomly
                     n_unique_ids = len(vessel_labels)
-                    number_vessels_to_hide = torch.randint(
+                    number__vesselsto_hide = torch.randint(
                         n_unique_ids//10,
                         n_unique_ids-1, [1]
                         ).item()
                     vessel_ids_to_hide = vessel_labels[
-                        torch.randperm(n_unique_ids)[:number_vessels_to_hide]]
+                        torch.randperm(n_unique_ids)[:number__vesselsto_hide]]
                     for vessel_id in vessel_ids_to_hide:
                         vessel_labels_tensor[vessel_labels_tensor == vessel_id] = 0
                 else:
@@ -282,7 +284,9 @@ class ImageSynthEngineOCT(nn.Module):
         vessel_mask = torch.clone(vessel_labels_tensor > 0)
 
         # Synthesize the parenchyma (background tissue)
-        parenchyma = self.parenchyma_(vessel_labels_tensor)
+        parenchyma = self._parenchyma(
+            vessel_labels_tensor)
+
         # Optionally, add a DC offset to the parenchyma
         if self.synth_params['dc_offset'] is True:
             dc_offset = Uniform(0, 0.25)()
@@ -292,23 +296,54 @@ class ImageSynthEngineOCT(nn.Module):
         # Determine if there are any vessels left
         if n_unique_ids > 0:
             # If so, synthesize them (grouped by intensity)
-            vessels = self.vessels_(vessel_labels_tensor)
+            vessels = self._vessels(vessel_labels_tensor)
             if self.synth_params['vessel_texture'] is True:
                 # Texturize those vessels!!!
-                vessel_texture = self.vessel_texture_(vessel_labels_tensor)
+                vessel_texture = self._vessel_texture(vessel_labels_tensor)
                 vessels[vessel_mask] *= vessel_texture[vessel_mask]
-            # Blending
-            alpha = 0.5
-            blended_values = torch.clone(final_volume)
-            blended_values[vessel_mask] = alpha * vessels[vessel_mask] + (1 - alpha) * final_volume[vessel_mask]
+            _parenchymalocal_intensity = self._local_intensity_module(
+                parenchyma)
+            vessels[~vessel_mask] = 0
+            vessels[vessel_mask] *= _parenchymalocal_intensity[vessel_mask]
+            vessels[vessel_mask] *= 0.5
 
-            # Ensure vessels are always darker
-            final_volume[vessel_mask] = torch.min(blended_values[vessel_mask], final_volume[vessel_mask] * vessels[vessel_mask])
+            blob_labels = SynthShapes.shapes.MultiLobedBlobSampler(
+                axis_length_range=[3, 10],
+                shape=128,
+                max_blobs=25,
+                sharpness=3)().unsqueeze(0).unsqueeze(0)
 
-            # final_volume[vessel_mask] *= vessels[vessel_mask]
+            blob_intensities = SynthShapes.texturizing.LabelsToIntensities(
+                max=0.25)(blob_labels)
+
+            # Sampling toroids with batch and channel dimensions(B, C, D, H, W)
+            torus_labels = SynthShapes.shapes.TorusBlobSampler(
+                shape=128, max_blobs=25)().unsqueeze(0).unsqueeze(0)
+            torus_intensities = SynthShapes.texturizing.LabelsToIntensities(
+                max=0.25)(torus_labels)
+
+            final_volume = SynthShapes.blending.Blender()(
+                final_volume, blob_intensities, alpha=cc.Uniform(0, 0.5)())
+
+            final_volume = SynthShapes.blending.Blender()(
+                final_volume, torus_intensities, alpha=cc.Uniform(0, 0.5)())
+
+            before_blending = torch.clone(final_volume)
+            final_volume = SynthShapes.blending.Blender()(
+                final_volume, vessels, alpha=cc.Uniform(0, 0.5)())
+
+            diff = before_blending[vessel_mask] - final_volume[vessel_mask]
+
+            min_diff = diff.min()
+            if min_diff < 0:
+                final_volume[vessel_mask] += min_diff
+                final_volume[vessel_mask] -= Uniform(0.2, 0.5)()
+            elif min_diff == 0:
+                final_volume[vessel_mask] += Uniform(0.2, 0.5)()
 
         # Normalizing
-        final_volume = QuantileTransform()(final_volume)
+        final_volume = cc.QuantileTransform()(final_volume)
+
         # Convert to same dtype as model weights
         final_volume = final_volume.to(torch.float32)
         # Convert one-hot encoded vessels to binary label map
@@ -316,7 +351,7 @@ class ImageSynthEngineOCT(nn.Module):
 
         return final_volume, vessel_labels_tensor
 
-    def parenchyma_(self, vessel_labels_tensor: torch.Tensor) -> torch.Tensor:
+    def _parenchyma(self, vessel_labels_tensor: torch.Tensor) -> torch.Tensor:
         """
         Generate parenchyma (background tissue) based on vessel labels using
         GPU optimized operations.
@@ -333,50 +368,36 @@ class ImageSynthEngineOCT(nn.Module):
         """
         # Create label map containing unique parenchymal regions with
         # unique IDs.
-        parenchyma = RandomSmoothLabelMap(
+        background_label_map = cc.RandomSmoothLabelMap(
             nb_classes=RandInt(2, self.nb_classes_)(),
             shape=RandInt(2, self.shape_)(),
             # Add 1 to work w/ every pixel (no 0s)
             )(vessel_labels_tensor).to(self.device) + 1
-        # Assign random intensities to parenchyma centered around i
-        parenchyma = parenchyma.to(torch.float32)
-        for i in torch.unique(parenchyma):
-            parenchyma.masked_fill_(parenchyma == i, Normal(i, 0.2)())
-        parenchyma /= parenchyma.max()  # Normalize the parenchyma
-        # Apply speckle noise
-        parenchyma = RandomGammaNoiseTransform(
-            sigma=Uniform(self.speckle_a, self.speckle_b)()
-            )(parenchyma)
 
-        # Optionally add spherical structures
-        if self.synth_params['spheres'] is True:
-            # Add first layer of spheres
-            if RandInt(0, 2)() == 1:
-                spheres = BernoulliDiskTransform(
-                    prob=1e-2,
-                    radius=RandInt(1, 4)(),
-                    value=Uniform(0, 2)()
-                    )(parenchyma)[0]
-                # Add deformation to spheres
-                if RandInt(0, 2)() == 1:
-                    spheres = ElasticTransform(shape=5)(spheres).detach()
-                parenchyma *= spheres
-        # Optionaly apply slabwise banding artifact
-        if self.synth_params['slabwise_banding'] is True:
-            parenchyma = RandomSlicewiseMulFieldTransform(
-                thickness=self.thickness_
-                )(parenchyma)
-        # Give bias field in lieu of slicewise transform
-        elif self.synth_params['slabwise_banding'] is False:
-            parenchyma = RandomMulFieldTransform(5)(parenchyma)
-        # Apply gamma transformation
-        parenchyma = RandomGammaTransform((
-            self.gamma_a, self.gamma_b))(parenchyma)
-        # Normalize
-        parenchyma = QuantileTransform()(parenchyma)
+        background_label_ids = torch.unique(background_label_map)
+
+        self._parenchymatransform = torch.nn.Sequential(
+            cc.RandomGaussianMixtureTransform(mu=1, sigma=2),
+            MinMaxScaler(),
+            cc.RandomGammaNoiseTransform(),
+            MinMaxScaler(),
+            cc.MulFieldTransform(vmin=0.1, vmax=0.75),
+            MinMaxScaler(),
+            # cc.QuantileTransform()
+            )
+        parenchyma = self._parenchymatransform(background_label_map)
+
+        background_label_map = background_label_map.float()
+        for label in background_label_ids:
+            mask = (background_label_map == label).bool()
+            average_intensity = cc.Uniform(0, 1)()
+            background_label_map.masked_fill_(mask, average_intensity)
+            bls = parenchyma[mask] - background_label_map[mask]
+            parenchyma[mask] -= bls.mean()
+
         return parenchyma
 
-    def vessels_(self, vessel_labels_tensor: torch.Tensor) -> torch.Tensor:
+    def _vessels(self, vessel_labels_tensor: torch.Tensor) -> torch.Tensor:
         """
         Generate vessel intensities.
 
@@ -402,7 +423,7 @@ class ImageSynthEngineOCT(nn.Module):
                                         intensity * vessel_texture_fix_factor)
         return scaling_tensor
 
-    def vessel_texture_(self,
+    def _vessel_texture(self,
                         vessel_labels_tensor: torch.Tensor
                         ) -> torch.Tensor:
         """
@@ -419,12 +440,12 @@ class ImageSynthEngineOCT(nn.Module):
             Tensor containing the vessel textures.
         """
         # Create unique label map with two unique IDs (regions)
-        vessel_texture = RandomSmoothLabelMap(
-            nb_classes=Fixed(2),
+        vessel_texture = cc.RandomSmoothLabelMap(
+            nb_classes=cc.Fixed(2),
             shape=self.shape_,
             )(vessel_labels_tensor) + 1  # Add 1 to work w/ every pixel (no 0s)
         # Apply gaussian mixture transformation
-        vessel_texture = RandomGaussianMixtureTransform(
+        vessel_texture = cc.RandomGaussianMixtureTransform(
             mu=Uniform(0.7, 1)(),
             sigma=0.8,
             dtype=self.dtype
@@ -478,8 +499,7 @@ class ImageSynthEngineWrapper(Dataset):
         self.save_nifti = save_nifti
         self.make_fig = make_fig
         self.save_fig = save_fig
-
-        print(self.exp_path)
+        # print(self.exp_path)
 
         # Set backend
         self.backend = dict(dtype=torch.float32, device=device)
@@ -522,8 +542,11 @@ class ImageSynthEngineWrapper(Dataset):
         self.label_tensor_backend = dict(device='cuda', dtype=torch.int32)
         label_tensor = torch.from_numpy(label_nifti.get_fdata()).to(
             **self.label_tensor_backend)
+        # Reshape to have batch and channel dimensions (B, C, D, H, W)
+        label_tensor = label_tensor.unsqueeze(0).unsqueeze(0)
+        
         # Clip the tensor values to a valid range and add a new dimension
-        label_tensor = torch.clip(label_tensor, 0, 32767)[None]
+        label_tensor = torch.clip(label_tensor, 0, 32767) # [None]
 
         # Make instance of ImageSynthEngine and generate the synthesized volume
         im, prob = ImageSynthEngineOCT(
