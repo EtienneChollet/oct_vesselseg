@@ -134,7 +134,7 @@ def imagesynth(data_experiment_n: int = 1,
                n_samples: int = 10,
                parenchyma_classes: int = 5,
                parenchyma_shape: int = 10,
-               vessel_intensity: tuple[float, float] = [0.01, 0.8],
+               vessel_intensity: tuple[float, float] = [0.75, 1],
                vessel_texture: bool = True,
                vessel_random_ablation: bool = True,
                image_gamma: tuple[float, float] = [0.2, 2],
@@ -200,7 +200,7 @@ def imagesynth(data_experiment_n: int = 1,
     vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
     synth = ImageSynthEngineWrapper(
         exp_path=(f"{vesselseg_outdir}/synthetic_data/"
-                  "exp{data_experiment_n:04}"),
+                  f"exp{data_experiment_n:04}"),
         synth_params=synth_params,
         save_nifti=True,
         save_fig=True
