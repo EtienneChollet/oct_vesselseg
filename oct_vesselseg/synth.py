@@ -246,8 +246,10 @@ class ImageSynthEngineOCT(nn.Module):
         # Move the tensor to specified device
         vessel_labels_tensor = vessel_labels_tensor.to(self.device)
         # Get sorted list of all unique vessel labels
+        vessels = SynthShapes.texturizing.TexturizeLabels()(
+            vessel_labels_tensor.int())
         vessel_labels = torch.unique(vessel_labels_tensor)
-        vessel_labels = vessel_labels[vessel_labels != 0].to(self.device)
+        vessel_mask = (vessel_labels_tensor > 0).bool()
 
         if vessel_labels.numel() >= 2:
             # n_unique_ids = 1
@@ -274,22 +276,14 @@ class ImageSynthEngineOCT(nn.Module):
             vessel_labels_tensor.zero_()
             n_unique_ids = 0
 
-        vessel_mask = torch.clone(vessel_labels_tensor > 0)
-
         # Synthesize the parenchyma (background tissue)
         parenchyma = self._parenchyma(
             vessel_labels_tensor)
-
-        # Optionally, add a DC offset to the parenchyma
-        #if self.synth_params['dc_offset'] is True:
-        #    dc_offset = Uniform(0, 0.25)()
-        #    parenchyma += dc_offset
-
         final_volume = parenchyma.clone()
         # Determine if there are any vessels left
         if n_unique_ids > 0:
             # If so, synthesize them (grouped by intensity)
-            vessels = self._vessels(vessel_labels_tensor)
+            # vessels = self._vessels(vessel_labels_tensor)
             before_blending = torch.clone(final_volume)
             final_volume = SynthShapes.blending.Blender()(
                 vessels, final_volume, mask=vessel_mask,
@@ -345,11 +339,12 @@ class ImageSynthEngineOCT(nn.Module):
             cc.RandomGaussianMixtureTransform(mu=1, sigma=2),
             # cc.QuantileTransform(),
             cc.RandomGammaNoiseTransform(),
-            cc.QuantileTransform(),
+            # cc.QuantileTransform(),
             cc.MulFieldTransform(vmin=0.1, vmax=0.75),
             cc.QuantileTransform(),
-            MultiLobeBlobAugmentation(max_blobs=50),
-            TorusBlobAugmentation(max_blobs=50),
+            MultiLobeBlobAugmentation(n_blobs=50),
+            TorusBlobAugmentation(n_blobs=25),
+            TorusBlobAugmentation(n_blobs=25),
             )
         return self._parenchymatransform(parenchyma)
 
@@ -413,7 +408,6 @@ class ImageSynthEngineOCT(nn.Module):
         vessel_texture += 0.5
         vessel_texture.clamp_min_(0)
         return vessel_texture
-
 
 
 class ImageSynthEngineWrapper(Dataset):
