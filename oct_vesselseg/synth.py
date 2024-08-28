@@ -552,6 +552,77 @@ class ImageSynthEngineWrapper(Dataset):
         axarr[2].imshow(im[frame], cmap='gray')
         axarr[2].contour(prob[frame], cmap='magma', alpha=1)
 
+class MakeDataset(Dataset):
+    """Synthesize and save a dataset to disk."""
+
+    def __init__(self, synth_params, data_experiment_n: int = 1, n_samples: int = 1000):
+        self.data_experiment_n = data_experiment_n
+        self.n_samples = n_samples
+        self.synth_params = synth_params
+
+        vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
+        self.exp_path = f"{vesselseg_outdir}/synthetic_data/exp{self.data_experiment_n:04}"
+
+        # Get sorted label paths
+        self.label_paths = sorted(glob.glob(f"{self.exp_path}/*label*"))
+
+        # Make x and y data dirs
+        self.x_dir = f"{self.exp_path}/dataset/x"
+        self.y_dir = f"{self.exp_path}/dataset/y"
+
+        # Create x and y directories
+        PathTools(self.x_dir).makeDir()
+        PathTools(self.y_dir).makeDir()
+
+    def __len__(self) -> int:
+        """
+        Return the number of samples in the dataset.
+        """
+        return len(self.label_paths)
+
+    def __getitem__(self, idx: int) -> tuple:
+        vessel_label_tensor = torch.from_numpy(
+            nib.load(self.label_paths[idx]).get_fdata())
+        vessel_label_tensor = vessel_label_tensor.unsqueeze(0).unsqueeze(0)
+        vessel_label_tensor = torch.clip(vessel_label_tensor, 0, 32767).int()
+        x, y = ImageSynthEngineOCT(
+            synth_params=self.synth_params)(vessel_label_tensor)
+
+        torch.save(x, f"{self.x_dir}/x_{idx:04}.pt")
+        torch.save(y, f"{self.y_dir}/y_{idx:04}.pt")
+        print(f"Saved volume {idx}")
+
+
+class LoadPremadeDataset(Dataset):
+    """Synthesize and save a dataset to disk."""
+
+    def __init__(self, data_experiment_n: int = 1, n_samples: int = -1):
+        self.data_experiment_n = data_experiment_n
+        self.n_samples = n_samples
+
+        vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
+        self.exp_path = f"{vesselseg_outdir}/synthetic_data/exp{self.data_experiment_n:04}"
+
+        # Make x and y data dirs
+        self.x_dir = f"{self.exp_path}/dataset/x"
+        self.y_dir = f"{self.exp_path}/dataset/y"
+
+        # Get sorted label paths
+        self.x_paths = sorted(glob.glob(f"{self.x_dir}/*"))
+        self.y_paths = sorted(glob.glob(f"{self.y_dir}/*"))
+
+    def __len__(self) -> int:
+        """
+        Return the number of samples in the dataset.
+        """
+        return len(self.x_paths)
+
+    def __getitem__(self, idx: int) -> tuple:
+        x = torch.load(self.x_paths[idx])[0]
+        y = torch.load(self.y_paths[idx])[0]
+        return x, y
+
+
 
 class VesselLabelDataset(Dataset):
     """

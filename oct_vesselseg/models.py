@@ -359,10 +359,11 @@ class UnetWrapper(nn.Module):
         utils.JsonTools(self.json_path).log(backbone_dict)
         self.trainee = self.load(backbone_dict, augmentation)
 
-    def train_it(self, synth_data_experiment_n, train_to_val: float = 0.8,
+    def train_it(self, synth_data_experiment_n: int = 1, train_to_val: float = 0.8,
                  batch_size: int = 1, epochs=1000,
                  check_val_every_n_epoch: int = 1,
-                 accumulate_gradient_n_batches: int = 1, num_workers: int = 1):
+                 accumulate_gradient_n_batches: int = 1, num_workers: int = 1,
+                 dataset: DataLoader = None):
         """
         Train unet after defining or loading model.
 
@@ -389,16 +390,21 @@ class UnetWrapper(nn.Module):
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.accumulate_gradient_n_batches = accumulate_gradient_n_batches
         self.num_workers = num_workers
-        self.exp_path = (f'{vesselseg_outdir}/synthetic_data'
-                         f'/exp{synth_data_experiment_n:04d}')
+
         # Init dataset
-        dataset = VesselLabelDataset(inputs=f'{self.exp_path}/*label*')
+        if dataset is None:
+            self.exp_path = (f'{vesselseg_outdir}/synthetic_data'
+                             f'/exp{synth_data_experiment_n:04d}')
+            self.dataset = VesselLabelDataset(inputs=f'{self.exp_path}/*label*')
+        else:
+            self.dataset = dataset
+
         # Splitting up train and val sets
         train_split = train_to_val
         val_split = 1 - train_split
         seed = torch.Generator().manual_seed(42)
         self.train_set, self.val_set = random_split(
-            dataset, [train_split, val_split], seed)
+            self.dataset, [train_split, val_split], seed)
         # Logger and checkpoint stuff
         self.logger = TensorBoardLogger(
             self.output_path, self.model_dir, self.version_n)

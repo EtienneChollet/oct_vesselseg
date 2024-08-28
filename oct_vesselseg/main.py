@@ -130,20 +130,21 @@ def vesselsynth(data_experiment_n: int = 1,
 
 
 @app.command()
-def imagesynth(data_experiment_n: int = 1,
-               n_samples: int = 10,
-               parenchyma_classes: int = 5,
-               parenchyma_shape: int = 10,
-               vessel_intensity: tuple[float, float] = [0.75, 1],
-               vessel_texture: bool = True,
-               vessel_random_ablation: bool = True,
-               image_gamma: tuple[float, float] = [0.2, 2],
-               image_z_decay: int = 32,
-               image_speckle: tuple[float, float] = [0.2, 0.8],
-               image_spheres: bool = True,
-               image_banding: bool = True,
-               image_dc_offset: bool = True
-               ):
+def imagesynth(
+    data_experiment_n: int = 1,
+    n_samples: int = 10,
+    parenchyma_classes: int = 5,
+    parenchyma_shape: int = 10,
+    vessel_intensity: tuple[float, float] = [0.75, 1],
+    vessel_texture: bool = True,
+    vessel_random_ablation: bool = True,
+    image_gamma: tuple[float, float] = [0.2, 2],
+    image_z_decay: int = 32,
+    image_speckle: tuple[float, float] = [0.2, 0.8],
+    image_spheres: bool = True,
+    image_banding: bool = True,
+    image_dc_offset: bool = True
+    ):
     """
     Synthesize OCT images with optional noise/artifact models and save in \\
     synthetic experiment directory.
@@ -208,6 +209,84 @@ def imagesynth(data_experiment_n: int = 1,
     for i in range(n_samples):
         synth[i]
 
+
+@app.command()
+def make_dataset(
+    data_experiment_n: int = 1,
+    n_samples: int = 1000,
+    parenchyma_classes: int = 5,
+    parenchyma_shape: int = 10,
+    vessel_intensity: tuple[float, float] = [0.75, 1],
+    vessel_texture: bool = True,
+    vessel_random_ablation: bool = True,
+    image_gamma: tuple[float, float] = [0.2, 2],
+    image_z_decay: int = 32,
+    image_speckle: tuple[float, float] = [0.2, 0.8],
+    image_spheres: bool = True,
+    image_banding: bool = True,
+    image_dc_offset: bool = True
+        ):
+    from oct_vesselseg.synth import MakeDataset
+
+    synth_params = {
+        "parenchyma": {
+            "nb_classes": parenchyma_classes,
+            "shape": parenchyma_shape
+        },
+        "random_vessel_ablation": vessel_random_ablation,
+        "gamma": image_gamma,
+        "z_decay": [image_z_decay],
+        "speckle": image_speckle,
+        "imin": vessel_intensity[0],
+        "imax": vessel_intensity[1],
+        "vessel_texture": vessel_texture,
+        "spheres": image_spheres,
+        "slabwise_banding": image_banding,
+        "dc_offset": image_dc_offset
+    }
+
+    dataset = MakeDataset(synth_params)
+    for i in range(len(dataset)):
+        dataset[i]
+
+
+@app.command()
+def train_premade(
+    model_version_n: int = 1,
+    model_dir: str = 'models',
+    model_features: tuple[int] = [32, 64, 128, 256],
+    training_lr: float = 1e-3,
+    training_train_to_val: float = 0.8,
+    training_steps: int = 1e5,
+    training_batch_size: int = 1
+        ):
+
+    from oct_vesselseg.models import UnetWrapper
+    from oct_vesselseg.synth import LoadPremadeDataset
+
+    dataset = LoadPremadeDataset()
+    n_samples = len(dataset)
+
+    unet = UnetWrapper(
+        version_n=model_version_n,
+        model_dir=model_dir,
+        learning_rate=training_lr
+        )
+    unet.new(
+        nb_levels=len(model_features),
+        nb_features=model_features,
+        dropout=0,
+        augmentation=False)
+
+    n_train = n_samples * training_train_to_val
+    epochs = int((training_steps * training_batch_size) // n_train)
+    print(f'Training for {epochs} epochs')
+    unet.train_it(
+        epochs=epochs,
+        batch_size=training_batch_size,
+        train_to_val=training_train_to_val,
+        dataset=dataset
+    )
 
 @app.command()
 def train(
