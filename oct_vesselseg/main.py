@@ -200,7 +200,7 @@ def imagesynth(data_experiment_n: int = 1,
     vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
     synth = ImageSynthEngineWrapper(
         exp_path=(f"{vesselseg_outdir}/synthetic_data/"
-                  "exp{data_experiment_n:04}"),
+                  f"exp{data_experiment_n:04}"),
         synth_params=synth_params,
         save_nifti=True,
         save_fig=True
