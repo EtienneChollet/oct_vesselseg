@@ -76,6 +76,9 @@ Finally, we can install oct_vesselseg from pypi.
 pip install oct_vesselseg
 ```
 
+### Optional installation
+Optionally (reccomended), you may install [freesurfer](https://surfer.nmr.mgh.harvard.edu/fswiki/DownloadAndInstall) to take advantage of freeview's NIfTI visualization tools. This helps in visualizing the output of each step, and the final results of the prediction.
+
 ## 2.2 Configuration
 
 You first need to determine the directory you want all oct_vesselseg related files to be stored. *PLEASE ENSURE IT IS A FULL (ABSOLUTE) PATH*. This directory is reccommended to be empty, or if you specify a non-existent directory, one will be created for you.
@@ -131,6 +134,17 @@ python3 oct_vesselseg/main.py vesselsynth --shape 32 32 32 --n-samples 50 --voxe
 ```
 
 ### 3.1.4 Example Output
+The vesselsynth subcommand will save its output in the umbrella directory `$OCT_VESSELSEG_BASE_DIR/synthetic_data`. Within this directory, locate the experiment number you specified using the `--data-experiment-n` flag. If you didn't specify this, your data was saved to experiment 1 (`exp0001`). This directory is home to myriad volumetric labels, but we are only concerned with those of the form `*_vessels_label.nii.gz`. The data are numbered in the order they were synthesized. Each datum is a seperate instance of a set of volumetric vessel labels - each single branch within a vascular tree is represented by a unique label, numbered from 1 to n. Let's use freeview to look at number 32, for example:
+
+![Vesselsynth Example Output](docs/oct-vesselseg-vesselsynth-example-output.png "Samples of synthesized vascular labels.")
+
+
+```bash
+freeview $OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/0032_vessels_label.nii.gz
+```
+
+Using the vertical side pannel on the left, set `Color Map` to `Lookup Table`, switch to 3d view, and check the box at the bottom of the pannel `Show as isosurface in 3D view`.
+
 
 ## 3.2 OCT Image Synthesis
 
