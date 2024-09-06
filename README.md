@@ -118,12 +118,12 @@ You can customize the vessel label synthesis engine with several flags, each cor
 To generate a dataset with data of shape (256, 256, 256) voxels, a resolution of 0.65 $\frac{mm^3}{voxel}$, and highly tortuous vessels:
 
 ```bash
-oct_vesselseg vesselsynth --shape 256,256,256 --voxel_size 0.65 --branch-tortuosity 4.0,5.0
+oct_vesselseg vesselsynth --shape 256 256 256 --voxel-size 0.03 --branch-tortuosity 4.0 5.0
 ```
 
 ## OCT Image Synthesis
 
-The `imagesynth` command generates synthetic OCT images which are made on-the-fly during the training process. By saving them to `OCT_VESSELSEG_BASE_DIR/synthetic_data/exp000*/sample_vols` with this command, this allows us to visualize our desired noise and artifact parameters before using them to train the network.
+The `imagesynth` command generates synthetic OCT images which are made on-the-fly during the training process. By saving them to `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp000*/sample_vols` with this command, this allows us to visualize our desired noise and artifact parameters before using them to train the network.
 
 ### Basic Usage
 
@@ -144,9 +144,9 @@ You can customize the synthesis process using the following parameter flags:
 
 - `--parenchyma-shape`: The upper bound for the number of control points defining the shape of each parenchyma class.
 
-- `--vessel_intensity`: The bounds for the attenuation of the vessel intensities when blending them onto the parenchyma. Lower magnitude results in vessels that are darker than their surrounding tissue/background. 
+- `--vessel-intensity`: The bounds for the attenuation of the vessel intensities when blending them onto the parenchyma. Lower magnitude results in vessels that are darker than their surrounding tissue/background. 
 
-- `--vessel_texture`: Optionally apply intra-vascular textures and artifacts.
+- `--vessel-texture`: Optionally apply intra-vascular textures and artifacts.
 
 - `--image-gamma`: The bounds for non-linear contrast adjustment. Higher values increase contrast, while lower values decrease it.
 
@@ -165,7 +165,7 @@ You can customize the synthesis process using the following parameter flags:
 Here's how you might use the `imagesynth` command to turn 20 vascular labels into volumes with 7 classes (distinct intensities) of neural parenchyma, vessels that are much darker than the background tissue, and with low overall contrast:
 
 ```bash
-oct_vesselseg imagesynth --n_samples 20 --parenchyma_classes 7 --vessel_intensity 0.1,0.2 --image_gamma 0.5,0.75
+oct_vesselseg imagesynth --n-samples 20 --parenchyma-classes 7 --vessel-intensity 0.1 0.2 --image-gamma 0.5 0.75
 ```
 
 ## Training
@@ -175,6 +175,65 @@ Train the model on the vessel labels and on-the-fly OCT image synthesis. The mod
 ```bash
 oct_vesselseg train
 ```
+
+### Customizing the Training Process
+
+You can customize the training process using the following groups of parameter flags:
+
+#### Model Flags
+The following flags allow you to specify parameters regarding the model's architecture, directory name, and the experimental version:
+
+- `--model-version-n`: Specifies the version number of the model to train. This will represent its own subdirectory within the directory specified by the following flag.
+
+- `--model-dir`: String that specifies the directory where all model versions/experimental runs are stored.
+
+- `--model-levels`: Number of levels (encoding/decoding block pairs) of the model.
+
+- `--model-features`: List of integers defining the number of features in each corresponding layer of the model.
+
+#### Training Flags
+
+The following flags define parameters regarding the training procedure:
+
+- `--training-lr`: Global learning rate that will be used for the majority of training (after lr warmup and before lr cooldown)
+
+- `--training-train-to-val`: Float representing the ratio of training data samples to testing data samples (train:test).
+
+- `--training-steps`: Number of times to step the optimizer (update the model's parameters) based on gradients calculated in backward pass.
+
+- `--training-batch-size`: Number of samples per batch.
+
+#### Data Flags
+The following flags set specific parameters regarding the on-the-fly synthesis engine
+
+- `--synth-data-experiment-n`: Specifies the vesselsynth data experiment number for loading volumetric dat.
+
+- `--synth-samples`: Total number of synthetic OCT image samples to generate per epoch (late split into train and validation sets based on `--training-train-to-val` flag).
+
+- `--synth-parenchyma-classes`: The upper bound for the number of classes of parenchyma (neural tissue) in the image synthesis.
+
+- `--synth-parenchyma-shape`: The upper bound for the number of control points defining the shape of each parenchyma class.
+
+- `--synth-image-gamma`: Bounds for global gamma exponential factor for contrast shrinking/stretching.
+
+- `--synth-image-z-decay`: The upper bound for size of z decay, roughly approximating the banding artifact due to serial sectioning.
+
+- `--synth-image-speckle`: Mean and standard deviation of multiplicative gamma noise.
+
+- `--synth-image-spheres`: Whether to add spherical artifacts to the image.
+
+- `--image-banding`: Optionally to apply slabwise banding (z-decay) artifacts to the image.
+
+- `--image-dc-offset`: Optionally add a small DC offset to the parenchyma tensor.
+
+### Example Usage
+
+Here's how you might use the `train` command to train on 40 vascular labels and validate on 10 (using a train to validation ratio of 0.8):
+
+```bash
+oct_vesselseg imagesynth --n-samples 20 --parenchyma-classes 7 --vessel-intensity 0.1 0.2 --image-gamma 0.5 0.75
+```
+
 
 ## Inference
 
