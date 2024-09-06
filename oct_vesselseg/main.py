@@ -62,6 +62,7 @@ def configure():
 @app.command()
 def vesselsynth(data_experiment_n: int = 1,
                 shape: tuple[int, int, int] = [128, 128, 128],
+                n_samples: int = 1000,
                 voxel_size: float = 0.02,
                 tree_levels: tuple[int, int] = [1, 4],
                 tree_density: tuple[float, float] = [0.1, 0.2],
@@ -83,6 +84,8 @@ def vesselsynth(data_experiment_n: int = 1,
         description.
     shape : list
         Shape of the synthetic volume in voxels (x, y, z).
+    n_samples : int
+        Number of vessel label samples to make.
     voxel_size : float
         Resolution of the synthetic volume in mm^3 per voxel.
     tree_levels : list[int]
@@ -126,6 +129,7 @@ def vesselsynth(data_experiment_n: int = 1,
     VesselSynthEngineWrapper(
         experiment_number=data_experiment_n,
         synth_engine=synth_engine,
+        n_volumes=n_samples,
         ).synth()
 
 
