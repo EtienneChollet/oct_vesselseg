@@ -79,6 +79,7 @@ After configuring `oct_vesselseg`, you may proceed to the useage section (below)
 The `vesselsynth` command is used to generate synthetic vascular labels that may be used, in conjunction with artifact and noise models, to train a 3D U-Net. These labels will be saved in the `synthetic_data` directory within `OCT_VESSELSEG_BASE_DIR`. This engine uses cubic splines and randomized domain-specific parameters to create highly variable yet structured vascular geometries.
 
 ### Basic Usage
+
 To generate a synthetic vascular dataset with default parameters, use:
 
 ```bash
@@ -91,34 +92,26 @@ There are many different parameters you can specify with this command using thes
 
 You can customize the vessel label synthesis engine with several flags, each corresponding to a specific aspect of the geometry of the volume generated, a single vascular tree, or individual branches. Below is a summary of some of the most important flags
 
--  `--shape`: This is the shape of the volume (input data) to be synthesized. This does not need to be a perfect cube. This will also be the shape of the UNet you will train.
-
+- `--shape`: This is the shape of the volume (input data) to be synthesized. This does not need to be a perfect cube. This will also be the shape of the UNet you will train.
 - `--voxel-size`: This is the spatial resolution of the data to be synthesized measured in units of $\frac{mm^3}{voxel}$. The default value is $0.02 \frac{mm^3}{voxel}$.
-
 - `--tree-levels`: Sampler bounds for the number of hierarchical levels in the vascular tree. The level of a branch in a vascular tree refers to the distance (in terms of number of branches) from the root node to the node from which the branch in question originates. This quantity is sampled from a discrete uniform distribution for each tree that is created.
     - Root Branch (level 0): The root branch is at level 0.
     - First Branch (level 1): The children of the root branch are at level 1.
     - Second level (level 2): The grandchildren of the root are at level 2.
-
 - `--tree-density`: Sampler bounds for the number of trees (or root points) per volume in units of $\frac{trees}{mm^3}$. This quantity is sampled from a uniform distribution for each volume that is created.
-
 - `--tree-root-radius`: Sampler bounds for the radius of the first branch (root, Level 0). This quantity is sampled from a uniform distribution for each tree that is created.
-
 - `--branch-tortuosity`: Sampler bounds for the tortuosity of a given branch. This quantity is sampled from a uniform distribution for each branch that is created. Tortuosity is defined as such:
     - $tortuosity = \frac{cord}{length}$
-
 - `--branch-radius-ratio`: Sampler bounds for the ratio of the radius of the child branch compared to the radius of the parent branch. This is sampled from a uniform distribution for each child branch that is created.
-
-
 - `--branch-radius-change`: Sampler bounds for a multiplicative variation in radius along the legth of a vessel. This is sampled from a uniform distribution for each branch.
-
 - `--branch-children`: Sampler bounds for the number of children per parent. This is sampled from a discrete uniform distribution for each parent branch.
 
 ### Example
-To generate a dataset with data of shape (256, 256, 256) voxels, a resolution of 0.65 $\frac{mm^3}{voxel}$, and highly tortuous vessels:
+
+To generate 50 sample dataset with data of shape (32, 32, 32) voxels, a resolution of 0.1 $\frac{mm^3}{voxel}$, and highly tortuous vessels (among other modifications):
 
 ```bash
-oct_vesselseg vesselsynth --shape 256 256 256 --voxel-size 0.03 --branch-tortuosity 4.0 5.0
+python3 oct_vesselseg/main.py vesselsynth --shape 32 32 32 --n-samples 50 --voxel-size 0.1 --tree-levels 1 2 --tree-density 0.1 0.2 --branch-tortuosity 4.0 5.0 --branch-children 1 2
 ```
 
 ## OCT Image Synthesis
@@ -134,30 +127,20 @@ oct_vesselseg imagesynth
 ```
 
 ### Customizing the Image Synthesis Engine
+
 You can customize the synthesis process using the following parameter flags:
 
 - `--data-experiment-n`: Specifies the vesselsynth data experiment number for loading volumetric dat.
-
 - `--n-samples`: The number of synthetic OCT images to generate.
-
 - `--parenchyma-classes`: The upper bound for the number of classes of parenchyma (neural tissue) in the image synthesis.
-
 - `--parenchyma-shape`: The upper bound for the number of control points defining the shape of each parenchyma class.
-
 - `--vessel-intensity`: The bounds for the attenuation of the vessel intensities when blending them onto the parenchyma. Lower magnitude results in vessels that are darker than their surrounding tissue/background. 
-
 - `--vessel-texture`: Optionally apply intra-vascular textures and artifacts.
-
 - `--image-gamma`: The bounds for non-linear contrast adjustment. Higher values increase contrast, while lower values decrease it.
-
 - `--image-z-decay`: The upper bound for z decay, roughly approximating the banding artifact due to serial sectioning.
-
 - `--image-speckle`: The bounds for speckle noise parameters.
-
 - `--image-spheres`: Whether to add spherical artifacts to the image.
-
 - `--image-banding`: Optionally to apply slabwise banding (z-decay) artifacts to the image.
-
 - `--image-dc-offset`: Optionally add a small DC offset to the parenchyma tensor.
 
 ### Example Usage
@@ -181,14 +164,12 @@ oct_vesselseg train
 You can customize the training process using the following groups of parameter flags:
 
 #### Model Flags
+
 The following flags allow you to specify parameters regarding the model's architecture, directory name, and the experimental version:
 
 - `--model-version-n`: Specifies the version number of the model to train. This will represent its own subdirectory within the directory specified by the following flag.
-
 - `--model-dir`: String that specifies the directory where all model versions/experimental runs are stored.
-
 - `--model-levels`: Number of levels (encoding/decoding block pairs) of the model.
-
 - `--model-features`: List of integers defining the number of features in each corresponding layer of the model.
 
 #### Training Flags
@@ -196,34 +177,23 @@ The following flags allow you to specify parameters regarding the model's archit
 The following flags define parameters regarding the training procedure:
 
 - `--training-lr`: Global learning rate that will be used for the majority of training (after lr warmup and before lr cooldown)
-
 - `--training-train-to-val`: Float representing the ratio of training data samples to testing data samples (train:test).
-
 - `--training-steps`: Number of times to step the optimizer (update the model's parameters) based on gradients calculated in backward pass.
-
 - `--training-batch-size`: Number of samples per batch.
 
 #### Data Flags
+
 The following flags set specific parameters regarding the on-the-fly synthesis engine
 
 - `--synth-data-experiment-n`: Specifies the vesselsynth data experiment number for loading volumetric dat.
-
 - `--synth-samples`: Total number of synthetic OCT image samples to generate per epoch (late split into train and validation sets based on `--training-train-to-val` flag).
-
 - `--synth-parenchyma-classes`: The upper bound for the number of classes of parenchyma (neural tissue) in the image synthesis.
-
 - `--synth-parenchyma-shape`: The upper bound for the number of control points defining the shape of each parenchyma class.
-
 - `--synth-image-gamma`: Bounds for global gamma exponential factor for contrast shrinking/stretching.
-
 - `--synth-image-z-decay`: The upper bound for size of z decay, roughly approximating the banding artifact due to serial sectioning.
-
 - `--synth-image-speckle`: Mean and standard deviation of multiplicative gamma noise.
-
 - `--synth-image-spheres`: Whether to add spherical artifacts to the image.
-
 - `--image-banding`: Optionally to apply slabwise banding (z-decay) artifacts to the image.
-
 - `--image-dc-offset`: Optionally add a small DC offset to the parenchyma tensor.
 
 ### Example Usage
@@ -234,14 +204,34 @@ Here's how you might use the `train` command to train on small model on 40 vascu
 oct_vesselseg train --synth-samples 50 --synth-parenchyma-classes 7 --model-levels 3 --model-features 8 16 32
 ```
 
-
 ## Inference
 
-Run inference on a compatable NIfTI file. Th
+Run inference on a compatable NIfTI file.
 
 ```bash
 oct_vesselseg test --in-path <path-to-NIfTI>
 ```
+
+### Customizing Inference
+
+- `--in-path`: Path to the stitched OCT data in compatable NIfTI format (`*.nii`). Can test on many different input files by seperating paths with commas.
+- `--model-version-n`: Version number of the model to test.
+- `--model-dir`: String that specifies the directory where all model versions/experimental runs are stored.
+- `--patch-size`: Size of patches (and size of the training data that this model was trained on/input layer to the model).
+- `--redundancy`: Factor controlling the overlap between adjacent patches. A value of 1 results in no overlap, a value of 2 results in 50% overlap in each dimension (8x averaging), and a value of 3 results in 75% overlap in each dimension (64x averaging)
+- `--checkpoint`: Which checkpoint to load weights from. If 'best', the checkpoint resulting in the best validation accuracy will be used. If 'last', the checkpoint from the most recent epoch will be used.
+- `--padding-method`: Method to pad the input tensor. {'reflect', 'replicate', 'constant'} .
+- `--normalize-patches`: Optionally normalize each patch before prediction, based on the quantiles of the patch.
+
+### Example Useage
+
+Here's how I would predict on a particular datum stored locally as a `.nii`:
+
+```bash
+oct_vesselseg test --in-path /autofs/cluster/octdata2/users/epc28/data/CAA/caa22/occipital/caa22_occipital.nii --patch-size 32 --redundancy 3
+```
+
+## 🎉 Congrats!! You're finished :)
 
 # Results
 
