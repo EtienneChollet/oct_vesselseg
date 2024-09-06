@@ -62,11 +62,15 @@ pip install oct_vesselseg
 
 ## Configuration
 
-Identify the directory you want all oct_vesselseg related files to go into (you might need to make a new directory), and run the following command. This will add a line to your ~/.bashrc file to set a global environment variable `OCT_VESSELSEG_BASE_DIR`. I recommend this to be an empty directory (or if you specify a non-existent directory, one will be made for you). *PLEASE ENSURE IT IS A FULL (ABSOLUTE) PATH*
+You first need to determine the directory you want all oct_vesselseg related files to be stored. *PLEASE ENSURE IT IS A FULL (ABSOLUTE) PATH*. This directory is reccommended to be empty, or if you specify a non-existent directory, one will be created for you.
+
+After determining this path, run the configuration subcommand of the recently installed `oct_vesselseg` package without any arguments (bare). Once run, you will receive a prompt to input the path. This subcommand adds a line to your ~/.bashrc file, which sets a global environment variable `OCT_VESSELSEG_BASE_DIR` to the desired path.
 
 ```bash
 oct_vesselseg configure
 ```
+
+After configuring `oct_vesselseg`, you may proceed to the useage section (below).
 
 # Usage
 
