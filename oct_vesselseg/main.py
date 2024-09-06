@@ -230,7 +230,8 @@ def train(
     synth_vessel_texture: bool = True,
     synth_image_spheres: bool = True,
     synth_image_banding: bool = True,
-    synth_image_dc_offset: bool = True
+    synth_image_dc_offset: bool = True,
+    synth_random_vessel_ablation: bool = True,
         ):
     """
     Train a Unet with specified model and imagesynth parameters.
@@ -240,17 +241,20 @@ def train(
     model_version_n : int
         Version number of the model to train.
     model_dir : str
-        Directory within output folder to save model versions.
+        directory where all model versions/experimental runs are stored.
     model_levels : int
-        Number of levels (encoding and decoding blocks) of the model.
+        Number of levels (encoding/decoding block pairs) of the model.
     model_features : list
-        List of number of features within the corresponging level of the model.
+        List of integers defining the number of features in each corresponding
+        layer of the model.
     training_lr : float
-        Learning rate of the main training phase (between warmup and cooldown)
+        Global learning rate that will be used for the majority of training
+        (after lr warmup and before lr cooldown)
     training_train_to_val : float
-        Ratio of training data to validation data.
+        Ratio of training samples to validation samples (train:val).
     training_steps : int
-        Number of steps the model will perform.
+        Number of times to step the optimizer (update the model's parameters)
+        based on gradients calculated in backward pass.
     training_batch_size : int
         Number of samples per batch.
     synth_data_experiment_n : int
@@ -264,8 +268,7 @@ def train(
         Sampler upper bound for number of control points in a given
         parenchyma class.
     synth_image_gamma : list
-        Sampler bounds for non-linear contrast adjustment/stretch.
-        Larger values increase contrast whereas lower values decrease contrast.
+        Mean and standard deviation of multiplicative gamma noise.
     synth_image_z_decay : list
         Z decay upper bound
     synth_image_speckle : list
@@ -280,6 +283,8 @@ def train(
         Apply slabwise banding (z-decay) artifact to the image.
     synth_image_dc_offset : bool
         Add a small value to the parenchyma tensor.
+    synth_random_vessel_ablation : bool
+        Optionally hide vessels randomly.
     """
     from oct_vesselseg.models import UnetWrapper
     synth_params = {
@@ -295,7 +300,8 @@ def train(
         "vessel_texture": synth_vessel_texture,
         "spheres": synth_image_spheres,
         "slabwise_banding": synth_image_banding,
-        "dc_offset": synth_image_dc_offset
+        "dc_offset": synth_image_dc_offset,
+        "random_vessel_ablation": synth_random_vessel_ablation
         }
 
     # Init a new Unet
@@ -311,14 +317,12 @@ def train(
         dropout=0,
         augmentation=True)
 
-    n_train = synth_samples * training_train_to_val
-    epochs = int((training_steps * training_batch_size) // n_train)
-    print(f'Training for {epochs} epochs')
     unet.train_it(
         synth_data_experiment_n=synth_data_experiment_n,
-        epochs=epochs,
+        synth_samples=synth_samples,
+        training_steps=training_steps,
+        train_to_val=training_train_to_val,
         batch_size=training_batch_size,
-        train_to_val=training_train_to_val
     )
 
 
