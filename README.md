@@ -127,24 +127,22 @@ You can customize the vessel label synthesis engine with several flags, each cor
 
 ### 3.1.3 Example Usage
 
-To generate 50 sample dataset with data of shape (32, 32, 32) voxels, a resolution of 0.1 $\frac{mm^3}{voxel}$, and highly tortuous vessels (among other modifications):
+To generate 50 sample dataset with data of shape (128, 128, 128) voxels, a resolution of 0.1 $\frac{mm^3}{voxel}$, and highly tortuous vessels (among other modifications):
 
 ```bash
-python3 oct_vesselseg/main.py vesselsynth --shape 32 32 32 --n-samples 50 --voxel-size 0.1 --tree-levels 1 2 --tree-density 0.1 0.2 --branch-tortuosity 4.0 5.0 --branch-children 1 2
+oct_vesselseg vesselsynth --data-experiment-n 2 --shape 128 128 128 --n-samples 50 --voxel-size 0.1 --tree-levels 1 2 --tree-density 0.001 0.002 --branch-tortuosity 4.0 5.0 --branch-children 1 2
 ```
 
 ### 3.1.4 Example Output
 The vesselsynth subcommand will save its output in the umbrella directory `$OCT_VESSELSEG_BASE_DIR/synthetic_data`. Within this directory, locate the experiment number you specified using the `--data-experiment-n` flag. If you didn't specify this, your data was saved to experiment 1 (`exp0001`). This directory is home to myriad volumetric labels, but we are only concerned with those of the form `*_vessels_label.nii.gz`. The data are numbered in the order they were synthesized. Each datum is a seperate instance of a set of volumetric vessel labels - each single branch within a vascular tree is represented by a unique label, numbered from 1 to n. Let's use freeview to look at number 32, for example:
 
-![Vesselsynth Example Output](docs/oct-vesselseg-vesselsynth-example-output.png "Samples of synthesized vascular labels.")
-
-
 ```bash
 freeview $OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/0032_vessels_label.nii.gz
 ```
 
-Using the vertical side pannel on the left, set `Color Map` to `Lookup Table`, switch to 3d view, and check the box at the bottom of the pannel `Show as isosurface in 3D view`.
+Using the vertical side pannel on the left, set `Color Map` to `Lookup Table`, switch to 3d view, and check the box at the bottom of the pannel `Show as isosurface in 3D view`. Here are a few samples of the 3D renderings of vascular labels.
 
+![Vesselsynth Example Output](docs/oct-vesselseg-vesselsynth-example-output.png "Samples of synthesized vascular labels.")
 
 ## 3.2 OCT Image Synthesis
 
@@ -185,7 +183,13 @@ oct_vesselseg imagesynth --n-samples 20 --parenchyma-classes 7 --vessel-intensit
 
 ### 3.2.4 Example Output
 
-![Results](docs/synth_samples.png "Samples of fully synthetic sOCT mus data.")
+The imagesynth subcommand will save its output in the umbrella directory `$OCT_VESSELSEG_BASE_DIR/synthetic_data`. Within this directory, locate the experiment number you specified using the `--data-experiment-n` flag in vesselsynth. For experiment 1, there will be two subdirectories of `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols`:
+- `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/figures`: Contains `.png` files with a random cross section of the 3D synthesized volumetric image, its corresponding vascular labels (binary), and the labels overlaid atop the intensity image.
+- `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/niftis`: Contains the volumetric image data and the corresponding (binary) vascular label map. You can load these into freeview.
+
+Let's take a look at one of the png images. I will look at `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/figures/`
+
+![Results](docs/imagesynth-example-output-4.png "Samples of fully synthetic sOCT mus data.")
 
 ## 3.3 Training
 
