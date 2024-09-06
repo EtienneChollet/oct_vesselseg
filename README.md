@@ -48,7 +48,7 @@ In order to synthesize vascular labels from splines, we will need to install the
 pip install git+https://github.com/balbasty/synthspline.git#f78ba23
 ```
 
-We need to identify and set our cuda version to make sure we install the right prebuilt wheel for cupy. You can find your cuda version by running the command `nvcc --version` or `nvidia-smi`.
+We need to identify and set our cuda version to make sure we install the right prebuilt wheel for cupy. You can find your cuda version by running the command `nvcc --version` or `nvidia-smi`. If you choose the latter, the cuda version will appear in the upper right hand corner of the output.
 
 ```bash
 export CUDA_VERSION=<cuda-version>  # OR nvidia-smi
