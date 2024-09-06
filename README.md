@@ -189,7 +189,7 @@ The imagesynth subcommand will save its output in the umbrella directory `$OCT_V
 
 Let's take a look at one of the png images. I will look at `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/figures/`
 
-![Results](docs/imagesynth-example-output-4.png "Samples of fully synthetic sOCT mus data.")
+![Results](docs/oct-vesselseg-imagesynth-example-output-4.png "Samples of fully synthetic sOCT mus data.")
 
 ## 3.3 Training
 
