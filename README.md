@@ -187,7 +187,7 @@ The imagesynth subcommand will save its output in the umbrella directory `$OCT_V
 - `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/figures`: Contains `.png` files with a random cross section of the 3D synthesized volumetric image, its corresponding vascular labels (binary), and the labels overlaid atop the intensity image.
 - `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/niftis`: Contains the volumetric image data and the corresponding (binary) vascular label map. You can load these into freeview.
 
-Let's take a look at one of the png images. I will look at `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/figures/`
+Let's take a look at one of the png images. I will look at `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp0001/sample_vols/figures/volume-0004.png`
 
 ![Results](docs/oct-vesselseg-imagesynth-example-output-4.png "Samples of fully synthetic sOCT mus data.")
 
