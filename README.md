@@ -228,10 +228,10 @@ The following flags set specific parameters regarding the on-the-fly synthesis e
 
 ### Example Usage
 
-Here's how you might use the `train` command to train on 40 vascular labels and validate on 10 (using a train to validation ratio of 0.8):
+Here's how you might use the `train` command to train on small model on 40 vascular labels and validate on 10 (using a train to validation ratio of 0.8):
 
 ```bash
-oct_vesselseg imagesynth --n-samples 20 --parenchyma-classes 7 --vessel-intensity 0.1 0.2 --image-gamma 0.5 0.75
+oct_vesselseg train --synth-samples 50 --synth-parenchyma-classes 7 --model-levels 3 --model-features 8 16 32
 ```
 
 
