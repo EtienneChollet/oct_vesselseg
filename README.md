@@ -4,20 +4,36 @@ Characterized by minimal priors and high variance sampling, this project builds 
 
 # Table of Contents
 
-- [Introduction](#introduction)
-- [Getting Started](#getting-started)
-    - [Installation](#installation)
-    - [Configuration](#configuration)
-- [Usage](#usage)
-    - [Vessel Synthesis](#vessel-synthesis)
-    - [OCT Image Synthesis](#image-synthesis)
-    - [Training](#training)
-    - [Inference](#inference)
-- [Results](#results)
+- [1 Introduction](#1-introduction)
+- [2 Getting Started](#2-getting-started)
+    - [2.1 Installation](#21-installation)
+    - [2.2 Configuration](#22-configuration)
+- [3 Usage](#3-usage)
+    - [3.1 Vessel Synthesis 🛠️](#31-vessel-synthesis)
+        - [3.1.1 Basic Usage](#311-basic-usage)
+        - [3.1.2 Customizing the Vessel Label Synthesis Engine](#312-customizing-the-vessel-label-synthesis-engine)
+        - [3.1.3 Example Usage](#313-example-usage)
+        - [3.1.4 Example Output](#314-example-output)
+    - [3.2 OCT Image Synthesis 📸](#32-oct-image-synthesis)
+        - [3.2.1 Basic Usage](#321-basic-usage)
+        - [3.2.2 Customizing the Image Synthesis Engine](#322-customizing-the-image-synthesis-engine)
+        - [3.2.3 Example Usage](#323-example-usage)
+        - [3.2.4 Example Output](#324-example-output)
+    - [3.3 Training 🏋🏻‍♀️](#33-training)
+        - [3.3.1 Basic Usage](#331-basic-usage)
+        - [3.3.2 Customizing the Training Process](#332-customizing-the-training-process)
+        - [3.3.3 Example Usage](#333-example-usage)
+        - [3.3.4 Example Output](#334-example-output)
+    - [3.4 Inference 🕵🏽](#34-inference)
+        - [3.4.1 Basic Usage](#341-basic-usage)
+        - [3.4.2 Customizing Inference](#342-customizing-inference)
+        - [3.4.3 Example Usage](#343-example-usage)
+        - [3.4.4 Example Output](#344-example-output)
+- [4 Results](#4-results)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
 
-# Introduction
+# 1 Introduction
 
 This project focuses on generating synthetic datasets for training a 3D U-Net in the task of vasculature segmentation in OCT data. Using a cubic spline synthesis pipeline first established in [SynthSpline](https://github.com/balbasty/synthspline), and many data augmentation techniques from [Cornucopia](https://github.com/balbasty/cornucopia), this project employs domain-randomized synthesis to create structured labels, textures, and artifacts, enhancing the training of neural networks for vascular segmentation.
 
@@ -29,11 +45,11 @@ This project focuses on generating synthetic datasets for training a 3D U-Net in
 
 ![Pipeline](docs/pipeline.png "Synthesis, Training, and Inference Pipeline")
 
-# Getting Started
+# 2 Getting Started
 
 Hard requirements include `Cppyy~=2.3` and `Python~=3.9`
 
-## Installation
+## 2.1 Installation
 
 It is suggested that you create and activate a new mamba environment with python 3.9. You can learn how to install mamba by following the instructions provided in the [Miniforge repo](https://github.com/conda-forge/miniforge).
 
@@ -60,7 +76,7 @@ Finally, we can install oct_vesselseg from pypi.
 pip install oct_vesselseg
 ```
 
-## Configuration
+## 2.2 Configuration
 
 You first need to determine the directory you want all oct_vesselseg related files to be stored. *PLEASE ENSURE IT IS A FULL (ABSOLUTE) PATH*. This directory is reccommended to be empty, or if you specify a non-existent directory, one will be created for you.
 
@@ -70,15 +86,15 @@ After determining this path, run the configuration subcommand of the recently in
 oct_vesselseg configure
 ```
 
-After configuring `oct_vesselseg`, you may proceed to the useage section (below).
+After configuring `oct_vesselseg`, you may proceed to the usage section (below).
 
-# Usage
+# 3 Usage
 
-## Vessel Synthesis
+## 3.1 Vessel Synthesis
 
 The `vesselsynth` command is used to generate synthetic vascular labels that may be used, in conjunction with artifact and noise models, to train a 3D U-Net. These labels will be saved in the `synthetic_data` directory within `OCT_VESSELSEG_BASE_DIR`. This engine uses cubic splines and randomized domain-specific parameters to create highly variable yet structured vascular geometries.
 
-### Basic Usage
+### 3.1.1 Basic Usage
 
 To generate a synthetic vascular dataset with default parameters, use:
 
@@ -88,7 +104,7 @@ oct_vesselseg vesselsynth
 
 There are many different parameters you can specify with this command using these flags:
 
-### Customizing the Vessel Label Synthesis Engine
+### 3.1.2 Customizing the Vessel Label Synthesis Engine
 
 You can customize the vessel label synthesis engine with several flags, each corresponding to a specific aspect of the geometry of the volume generated, a single vascular tree, or individual branches. Below is a summary of some of the most important flags
 
@@ -106,7 +122,7 @@ You can customize the vessel label synthesis engine with several flags, each cor
 - `--branch-radius-change`: Sampler bounds for a multiplicative variation in radius along the legth of a vessel. This is sampled from a uniform distribution for each branch.
 - `--branch-children`: Sampler bounds for the number of children per parent. This is sampled from a discrete uniform distribution for each parent branch.
 
-### Example
+### 3.1.3 Example Usage
 
 To generate 50 sample dataset with data of shape (32, 32, 32) voxels, a resolution of 0.1 $\frac{mm^3}{voxel}$, and highly tortuous vessels (among other modifications):
 
@@ -114,11 +130,13 @@ To generate 50 sample dataset with data of shape (32, 32, 32) voxels, a resoluti
 python3 oct_vesselseg/main.py vesselsynth --shape 32 32 32 --n-samples 50 --voxel-size 0.1 --tree-levels 1 2 --tree-density 0.1 0.2 --branch-tortuosity 4.0 5.0 --branch-children 1 2
 ```
 
-## OCT Image Synthesis
+### 3.1.4 Example Output
+
+## 3.2 OCT Image Synthesis
 
 The `imagesynth` command generates synthetic OCT images which are made on-the-fly during the training process. By saving them to `$OCT_VESSELSEG_BASE_DIR/synthetic_data/exp000*/sample_vols` with this command, this allows us to visualize our desired noise and artifact parameters before using them to train the network.
 
-### Basic Usage
+### 3.2.1 Basic Usage
 
 To generate OCT images with default settings, run:
 
@@ -126,7 +144,7 @@ To generate OCT images with default settings, run:
 oct_vesselseg imagesynth
 ```
 
-### Customizing the Image Synthesis Engine
+### 3.2.2 Customizing the Image Synthesis Engine
 
 You can customize the synthesis process using the following parameter flags:
 
@@ -143,7 +161,7 @@ You can customize the synthesis process using the following parameter flags:
 - `--image-banding`: Optionally to apply slabwise banding (z-decay) artifacts to the image.
 - `--image-dc-offset`: Optionally add a small DC offset to the parenchyma tensor.
 
-### Example Usage
+### 3.2.3 Example Usage
 
 Here's how you might use the `imagesynth` command to turn 20 vascular labels into volumes with 7 classes (distinct intensities) of neural parenchyma, vessels that are much darker than the background tissue, and with low overall contrast:
 
@@ -151,7 +169,13 @@ Here's how you might use the `imagesynth` command to turn 20 vascular labels int
 oct_vesselseg imagesynth --n-samples 20 --parenchyma-classes 7 --vessel-intensity 0.1 0.2 --image-gamma 0.5 0.75
 ```
 
-## Training
+### 3.2.4 Example Output
+
+![Results](docs/synth_samples.png "Samples of fully synthetic sOCT mus data.")
+
+## 3.3 Training
+
+### 3.3.1 Basic Usage
 
 Train the model on the vessel labels and on-the-fly OCT image synthesis. The models will go into a subdirectory of `OCT_VESSELSEG_BASE_DIR` called `models`.
 
@@ -159,7 +183,7 @@ Train the model on the vessel labels and on-the-fly OCT image synthesis. The mod
 oct_vesselseg train
 ```
 
-### Customizing the Training Process
+### 3.3.2 Customizing the Training Process
 
 You can customize the training process using the following groups of parameter flags:
 
@@ -196,7 +220,7 @@ The following flags set specific parameters regarding the on-the-fly synthesis e
 - `--image-banding`: Optionally to apply slabwise banding (z-decay) artifacts to the image.
 - `--image-dc-offset`: Optionally add a small DC offset to the parenchyma tensor.
 
-### Example Usage
+### 3.3.3. Example Usage
 
 Here's how you might use the `train` command to train on small model on 40 vascular labels and validate on 10 (using a train to validation ratio of 0.8):
 
@@ -204,7 +228,11 @@ Here's how you might use the `train` command to train on small model on 40 vascu
 oct_vesselseg train --synth-samples 50 --synth-parenchyma-classes 7 --model-levels 3 --model-features 8 16 32
 ```
 
-## Inference
+### 3.3.4 Example Output
+
+## 3.4 Inference
+
+### 3.4.1 Basic Usage
 
 Run inference on a compatable NIfTI file.
 
@@ -212,7 +240,7 @@ Run inference on a compatable NIfTI file.
 oct_vesselseg test --in-path <path-to-NIfTI>
 ```
 
-### Customizing Inference
+### 3.4.2 Customizing Inference
 
 - `--in-path`: Path to the stitched OCT data in compatable NIfTI format (`*.nii`). Can test on many different input files by seperating paths with commas.
 - `--model-version-n`: Version number of the model to test.
@@ -223,7 +251,7 @@ oct_vesselseg test --in-path <path-to-NIfTI>
 - `--padding-method`: Method to pad the input tensor. {'reflect', 'replicate', 'constant'} .
 - `--normalize-patches`: Optionally normalize each patch before prediction, based on the quantiles of the patch.
 
-### Example Useage
+### 3.4.3 Example Usage
 
 Here's how I would predict on a particular datum stored locally as a `.nii`:
 
@@ -231,13 +259,11 @@ Here's how I would predict on a particular datum stored locally as a `.nii`:
 oct_vesselseg test --in-path /autofs/cluster/octdata2/users/epc28/data/CAA/caa22/occipital/caa22_occipital.nii --patch-size 32 --redundancy 3
 ```
 
+### 3.4.4 Example Output
+
 ## 🎉 Congrats!! You're finished :)
 
 # Results
-
-Here we provide some examples of synthetic vasculature generated by this method:
-
-![Results](docs/synth_samples.png "Samples of fully synthetic sOCT mus data.")
 
 # License
 
