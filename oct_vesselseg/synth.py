@@ -16,7 +16,6 @@ import numpy as np
 from torch import nn
 from typing import Union, List, Dict
 import matplotlib.pyplot as plt
-from torch.cuda.amp import autocast
 from torch.utils.data import Dataset
 
 # Balbasty imports
@@ -39,7 +38,7 @@ from cornucopia import (
 from cornucopia.random import Fixed, Normal
 
 # Custom Imports
-from core.utils import PathTools
+from oct_vesselseg.utils import PathTools
 
 # Setup logging
 logging.basicConfig(
@@ -49,6 +48,9 @@ logging.basicConfig(
 )
 # Init logger
 logger = logging.getLogger(__name__)
+
+
+vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
 
 
 class VesselSynthEngineOCT(SynthSplineBlock):
@@ -94,7 +96,7 @@ class VesselSynthEngineWrapper(object):
         ----------
         experiment_dir : str, optional
             Directory for output of synthesis experiments, default is
-            'synthetic_data' (which is found in oct_vesselseeg/output).
+            'synthetic_data' (which is found in OCT_VESSELSEG_BASE_DIR).
         experiment_number : int, optional
             Identifier for the synthesis experiment, default is 1. (exp0001)
         synth_engine : SynthSplineBlock, optional
@@ -109,8 +111,9 @@ class VesselSynthEngineWrapper(object):
         self.shape = synth_engine.shape
         self.n_volumes = n_volumes
         # Output path for the synthesis experiment
-        self.experiment_path = (f"output/{experiment_dir}/"
-                                f"exp{experiment_number:04d}")
+        self.experiment_path = (
+            f"{vesselseg_outdir}/{experiment_dir}/"
+            f"exp{experiment_number:04d}")
         # Create directory for output of synthesis experiment
         # (empty it if it exists)
         PathTools(self.experiment_path).makeDir()
@@ -224,6 +227,7 @@ class ImageSynthEngineOCT(nn.Module):
         """
         Setup and initialize synthesis parameters
         """
+        self.random_vessel_ablation = self.synth_params['random_vessel_ablation']
         self.speckle_a = float(self.synth_params.get('speckle')[0])
         self.speckle_b = float(self.synth_params['speckle'][1])
         self.gamma_a = float(self.synth_params['gamma'][0])
@@ -258,19 +262,24 @@ class ImageSynthEngineOCT(nn.Module):
                 vessel_labels_tensor.zero_()
                 n_unique_ids = 0
             else:
-                # Hide some vessels randomly
-                n_unique_ids = len(vessel_labels)
-                number_vessels_to_hide = torch.randint(
-                    n_unique_ids//10,
-                    n_unique_ids-1, [1]
-                    ).item()
-                vessel_ids_to_hide = vessel_labels[
-                    torch.randperm(n_unique_ids)[:number_vessels_to_hide]]
-                for vessel_id in vessel_ids_to_hide:
-                    vessel_labels_tensor[vessel_labels_tensor == vessel_id] = 0
+                if self.random_vessel_ablation:
+                    # Hide some vessels randomly
+                    n_unique_ids = len(vessel_labels)
+                    number_vessels_to_hide = torch.randint(
+                        n_unique_ids//10,
+                        n_unique_ids-1, [1]
+                        ).item()
+                    vessel_ids_to_hide = vessel_labels[
+                        torch.randperm(n_unique_ids)[:number_vessels_to_hide]]
+                    for vessel_id in vessel_ids_to_hide:
+                        vessel_labels_tensor[vessel_labels_tensor == vessel_id] = 0
+                else:
+                    n_unique_ids = len(vessel_labels)
         else:
             vessel_labels_tensor.zero_()
             n_unique_ids = 0
+
+        vessel_mask = torch.clone(vessel_labels_tensor > 0)
 
         # Synthesize the parenchyma (background tissue)
         parenchyma = self.parenchyma_(vessel_labels_tensor)
@@ -287,16 +296,23 @@ class ImageSynthEngineOCT(nn.Module):
             if self.synth_params['vessel_texture'] is True:
                 # Texturize those vessels!!!
                 vessel_texture = self.vessel_texture_(vessel_labels_tensor)
-                vessels[vessel_labels_tensor > 0] *= vessel_texture[
-                    vessel_labels_tensor > 0
-                    ]
-            final_volume[vessel_labels_tensor > 0] *= vessels[
-                    vessel_labels_tensor > 0
-                    ]
+                vessels[vessel_mask] *= vessel_texture[vessel_mask]
+            # Blending
+            alpha = 0.5
+            blended_values = torch.clone(final_volume)
+            blended_values[vessel_mask] = alpha * vessels[vessel_mask] + (1 - alpha) * final_volume[vessel_mask]
+
+            # Ensure vessels are always darker
+            final_volume[vessel_mask] = torch.min(blended_values[vessel_mask], final_volume[vessel_mask] * vessels[vessel_mask])
+
+            # final_volume[vessel_mask] *= vessels[vessel_mask]
+
         # Normalizing
         final_volume = QuantileTransform()(final_volume)
         # Convert to same dtype as model weights
         final_volume = final_volume.to(torch.float32)
+        # Convert one-hot encoded vessels to binary label map
+        vessel_labels_tensor[vessel_labels_tensor != 0] = 1
 
         return final_volume, vessel_labels_tensor
 
@@ -320,7 +336,8 @@ class ImageSynthEngineOCT(nn.Module):
         parenchyma = RandomSmoothLabelMap(
             nb_classes=RandInt(2, self.nb_classes_)(),
             shape=RandInt(2, self.shape_)(),
-            )(vessel_labels_tensor).to(self.device) + 1  # Add 1 to work w/ every pixel (no 0s)
+            # Add 1 to work w/ every pixel (no 0s)
+            )(vessel_labels_tensor).to(self.device) + 1
         # Assign random intensities to parenchyma centered around i
         parenchyma = parenchyma.to(torch.float32)
         for i in torch.unique(parenchyma):
@@ -435,7 +452,7 @@ class ImageSynthEngineWrapper(Dataset):
                  save_fig: bool = False
                  ):
         """
-        Initialize the dataset for synthesizing OCT volumetric images.
+        Initialize the dataset for synthesizing volumetric OCT images.
 
         Parameters
         ----------
@@ -461,6 +478,8 @@ class ImageSynthEngineWrapper(Dataset):
         self.save_nifti = save_nifti
         self.make_fig = make_fig
         self.save_fig = save_fig
+
+        print(self.exp_path)
 
         # Set backend
         self.backend = dict(dtype=torch.float32, device=device)
@@ -531,7 +550,7 @@ class ImageSynthEngineWrapper(Dataset):
         if self.save_nifti is True:
             plt.savefig(f"{self.sample_fig_dir}/{volume_name}.png")
 
-        return im.unsqueeze(0), prob.unsqueeze(0)
+        # return im.unsqueeze(0), prob.unsqueeze(0)
 
     def _make_fig(self, im: np.ndarray, prob: np.ndarray) -> None:
         """

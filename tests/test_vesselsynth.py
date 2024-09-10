@@ -3,7 +3,7 @@ import os
 import shutil
 import json
 import nibabel as nib
-from core.synth import VesselSynthEngineWrapper
+from oct_vesselseg.synth import VesselSynthEngineWrapper
 
 
 class TestVesselSynth(unittest.TestCase):
