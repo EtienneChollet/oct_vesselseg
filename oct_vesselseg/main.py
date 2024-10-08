@@ -54,9 +54,9 @@ def configure():
         with open(bashrc_path, 'w') as file:
             file.write(export_command)
 
-    # Optionally, source the .bashrc file (applies the changes immediately in
-    # current session)
-    os.system(f'source {bashrc_path}')
+    print("\nConfiguration successful. "
+          "Please run `source ~/.bashrc` to apply the changes, "
+          "or restart your terminal.")
 
 
 @app.command()
@@ -363,7 +363,7 @@ def test(in_path: str, model_version_n: int = 1, model_dir: str = 'models',
     import time
     import torch
     from oct_vesselseg.models import UnetWrapper
-    from oct_vesselseg.data import RealOctPredict
+    from oct_vesselseg.data import RealOctPredict, RealOctConfig
 
     # Starting timer
     t1 = time.time()
@@ -381,16 +381,18 @@ def test(in_path: str, model_version_n: int = 1, model_dir: str = 'models',
 
             # Loading model weights and setting to test mode
             unet.load(type=checkpoint, mode='test')
-            prediction = RealOctPredict(
+            # Configuring prediction
+            oct_config = RealOctConfig(
                 input=path,
                 patch_size=patch_size,
                 redundancy=redundancy,
                 trainee=unet.trainee,
                 pad_it=True,
                 padding_method=padding_method,
-                normalize_patches=normalize_patches,
-                )
+                normalize_patches=normalize_patches
+            )
 
+            prediction = RealOctPredict(oct_config)
             prediction.predict_on_all()
             out_path = f"{unet.version_path}/predictions"
             prediction.save_prediction(dir=out_path)
