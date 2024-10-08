@@ -8,11 +8,11 @@ cuda_version = os.getenv('CUDA_VERSION', '11.6')
 cuda_version = cuda_version.replace('.', '')
 
 # Format version to get prebuilt wheel
-cupy_package = f'cupy-cuda{cuda_version}'
+cupy_package = f'1{cuda_version}'
 
 setup(
     name='oct_vesselseg',
-    version='0.0.7',
+    version='0.0.9',
     description='A Label-Free and Data-Free Synthesis Engine and Training Framework for Vascular Segmentation of sOCT Data with PyTorch.',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
@@ -31,7 +31,7 @@ setup(
         },
     install_requires=[
         cupy_package,
-        'cppyy~=2.3',
+        'cppyy==2.3',
         'torch',
         'torchvision',
         'torchaudio',
@@ -45,7 +45,7 @@ setup(
         'matplotlib',
         'tensorboard',
         'pandas',
-        'cyclopts'
+        'cyclopts',
         'cornucopia',
     ],
     classifiers=[
