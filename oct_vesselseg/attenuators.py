@@ -1,6 +1,7 @@
 __all__ = [
     "SinusoidalAttenuator",
-    "ExponentialAttenuator"
+    "ExponentialAttenuator",
+    "GaussianAttenuator"
 ]
 
 import torch
@@ -11,14 +12,6 @@ class SinusoidalAttenuator(nn.Module):
     """
     A PyTorch module for generating a sinusoidal patch attenuator
     in n dimensions.
-
-    Parameters
-    ----------
-    size : int
-        Size of each dimension for attenuator. All dimensions are assumed to
-        have equal sides.
-    dimensions : int
-        Number of dimensions for attenuator.
     """
     def __init__(self, size: int = 128, dimensions: int = 3):
         super().__init__()
@@ -28,6 +21,14 @@ class SinusoidalAttenuator(nn.Module):
     def forward(self):
         """
         Forward pass to generate the sinusoidal patch attenuator.
+
+        Parameters
+        ----------
+        size : int
+            Size of each dimension for attenuator. All dimensions are assumed to
+            have equal sides.
+        dimensions : int
+            Number of dimensions for attenuator.
 
         Returns
         -------
@@ -92,16 +93,6 @@ class ExponentialAttenuator(nn.Module):
     """
     A PyTorch module for generating an exponential patch attenuator in n
     dimensions.
-
-    Parameters
-    ----------
-    size : int
-        Size of each dimension for attenuator. All dimensions are assumed to
-        have equal sides.
-    dimensions : int
-        Number of dimensions for attenuator.
-    decay_rate : float
-        The rate at which the attenuation decreases ()
     """
     def __init__(self, size: int = 128, dimensions: int = 3,
                  decay_rate: float = 2.0):
@@ -113,6 +104,16 @@ class ExponentialAttenuator(nn.Module):
     def forward(self):
         """
         Forward pass to generate the exponential patch attenuator.
+
+        Parameters
+        ----------
+        size : int
+            Size of each dimension for attenuator. All dimensions are assumed to
+            have equal sides.
+        dimensions : int
+            Number of dimensions for attenuator.
+        decay_rate : float
+            The rate at which the attenuation decreases
 
         Returns
         -------
@@ -150,3 +151,53 @@ class ExponentialAttenuator(nn.Module):
 # attenuator = ExponentialAttenuator(size=128, dimensions=1)()
 # x = torch.arange(len(attenuator))
 # plt.plot(x, attenuator)
+
+
+class GaussianAttenuator(nn.Module):
+    """
+    A PyTorch module for generating a Gaussian patch attenuator in n
+    dimensions.
+    """
+    def __init__(self, size: int = 128, dimensions: int = 3, std: float = 1.0):
+        """
+        Initialize the Gaussian attenuator.
+
+        Parameters
+        ----------
+        size : int
+            Size of each dimension for attenuator. All dimensions are assumed
+            to have equal sides.
+        dimensions : int
+            Number of dimensions for attenuator.
+        std : float
+            Standard deviation for the Gaussian function.
+
+        Returns
+        -------
+        torch.Tensor
+            The n-dimensional gaussian attenuator.
+        """
+        super().__init__(size, dimensions)
+        self.std = std
+
+    def make_attenuator(self) -> torch.Tensor:
+        """
+        Generate the Gaussian patch attenuator.
+
+        Returns
+        -------
+        torch.Tensor
+            The n-dimensional Gaussian attenuator.
+        """
+        # Create the domain from -3σ to +3σ
+        x = torch.linspace(-3 * self.std, 3 * self.std, self.size)
+        # Compute Gaussian.
+        y = torch.exp(-0.5 * (x / self.std) ** 2)
+        # Normalize to [0, 1]
+        y = (y - y.min()) / (y.max() - y.min())
+
+        # Make the attenuator in n dimensions.
+        attenuator_nd = y
+        for _ in range(1, self.dimensions):
+            attenuator_nd = attenuator_nd.unsqueeze(-1) * y
+        return attenuator_nd
