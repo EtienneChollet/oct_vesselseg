@@ -1,7 +1,7 @@
 __all__ = [
-    "SinusoidalAttenuator",
     "ExponentialAttenuator",
     "GaussianAttenuator"
+    "SinusoidalAttenuator",
 ]
 
 import torch
