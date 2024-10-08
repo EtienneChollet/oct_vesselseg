@@ -168,7 +168,7 @@ You can customize the synthesis process using the following parameter flags:
 - `--vessel-texture`: Optionally apply intra-vascular textures and artifacts.
 - `--image-gamma`: The bounds for non-linear contrast adjustment. Higher values increase contrast, while lower values decrease it.
 - `--image-z-decay`: The upper bound for z decay, roughly approximating the banding artifact due to serial sectioning.
-- `--image-speckle`: The bounds for speckle noise parameters.
+- `--image-speckle`: Standard deviation and mean of multiplicative gamma noise distribution. Both parameters are upper bounds to be sampled from a uniform distributions.
 - `--image-spheres`: Whether to add spherical artifacts to the image.
 - `--image-banding`: Optionally to apply slabwise banding (z-decay) artifacts to the image.
 - `--image-dc-offset`: Optionally add a small DC offset to the parenchyma tensor.
@@ -233,7 +233,7 @@ The following flags set specific parameters regarding the on-the-fly synthesis e
 - `--synth-parenchyma-shape`: The upper bound for the number of control points defining the shape of each parenchyma class.
 - `--synth-image-gamma`: Bounds for global gamma exponential factor for contrast shrinking/stretching.
 - `--synth-image-z-decay`: The upper bound for size of z decay, roughly approximating the banding artifact due to serial sectioning.
-- `--synth-image-speckle`: Mean and standard deviation of multiplicative gamma noise.
+- `--synth-image-speckle`: Standard deviation and mean of multiplicative gamma noise distribution. Both parameters are upper bounds to be sampled from a uniform distributions.
 - `--synth-image-spheres`: Whether to add spherical artifacts to the image.
 - `--image-banding`: Optionally to apply slabwise banding (z-decay) artifacts to the image.
 - `--image-dc-offset`: Optionally add a small DC offset to the parenchyma tensor.
