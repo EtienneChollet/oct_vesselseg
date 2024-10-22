@@ -5,6 +5,7 @@ __all__ = [
 ]
 
 # Standard Imports
+import os
 import torch
 from torch import nn
 from pytorch_lightning import Trainer
@@ -14,10 +15,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks import LearningRateMonitor
 
 # Custom Imports
-from core import modules, utils
-from core.losses import DiceLoss
-from core import train
-from core.synth import ImageSynthEngineOCT, VesselLabelDataset
+from oct_vesselseg import modules, utils
+from oct_vesselseg.losses import DiceLoss
+from oct_vesselseg import train
+from oct_vesselseg.synth import ImageSynthEngineOCT, VesselLabelDataset
 
 
 def _init_from_defaults(self, **kwargs):
@@ -26,6 +27,9 @@ def _init_from_defaults(self, **kwargs):
             kwargs.setdefault(key, value)
     for key, value in kwargs.items():
         setattr(self, key, value)
+
+
+vesselseg_outdir = os.getenv("OCT_VESSELSEG_BASE_DIR")
 
 
 class SegNet(nn.Sequential):
@@ -229,7 +233,7 @@ class UnetWrapper(nn.Module):
         self.model_dir = model_dir
         self.device = device
         self.synth_params = synth_params
-        self.output_path = "output"
+        self.output_path = vesselseg_outdir
         self.version_path = f"{self.output_path}/{model_dir}"\
                             f"/version_{version_n}"
         self.json_path = (
@@ -355,45 +359,62 @@ class UnetWrapper(nn.Module):
         utils.JsonTools(self.json_path).log(backbone_dict)
         self.trainee = self.load(backbone_dict, augmentation)
 
-    def train_it(self, data_experiment_number, train_to_val: float = 0.8,
-                 batch_size: int = 1, epochs=1000,
+    def train_it(self,
+                 synth_data_experiment_n,
+                 synth_samples: int = -1,
+                 training_steps: int = int(1e5),
+                 train_to_val: float = 0.8,
+                 batch_size: int = 1,
                  check_val_every_n_epoch: int = 1,
-                 accumulate_gradient_n_batches: int = 1, num_workers: int = 1):
+                 accumulate_gradient_n_batches: int = 1,
+                 num_workers: int = 1
+                 ):
         """
         Train unet after defining or loading model.
 
         Parameters
         ----------
-        data_experiment_number : int
+        synth_data_experiment_n : int
             Dataset that will be used for training model.
+        synth_samples : int
+            Number of samples in the combined training and testing set.
+            Default is -1 (all samples available).
+        training_steps : int
+            Number of training steps to take. Default is 100,000
         train_to_val : float
             Ratio of training data to validation data for training loop.
+            Default is 0.8
         batch_size : int
-            Number of volumes per batch.
-        epochs : int
-            Number of epochs in entire trainig loop.
+            Number of volumes per batch. Default is 1.
         check_val_every_n_epoch : int
             Number of times validation dice score is calculated (expressed in
-            epochs).
+            epochs). Default is 1.
         accumulate_gradient_n_batches : int
             Number of batches to compute before stepping optimizer.
-        i_max : float
-            Maximum intensity for synthesized volumes.
+        num_workers : int
+            Number of workers for torch dataloader. Default is 1.
         """
+        self.synth_samples = synth_samples
+        self.train_to_val = train_to_val
+        self.n_train = synth_samples * train_to_val
         self.batch_size = batch_size
-        self.epochs = epochs
         self.check_val_every_n_epoch = check_val_every_n_epoch
         self.accumulate_gradient_n_batches = accumulate_gradient_n_batches
         self.num_workers = num_workers
-        self.exp_path = f'output/synthetic_data/exp{data_experiment_number:04d}'
+        self.exp_path = (f'{vesselseg_outdir}/synthetic_data'
+                         f'/exp{synth_data_experiment_n:04d}')
+        self.epochs = int(
+            (training_steps * self.batch_size) // self.n_train)
+
+        print(f'Training for {self.epochs} epochs')
+
         # Init dataset
-        dataset = VesselLabelDataset(inputs=f'{self.exp_path}/*label*')
-        # Splitting up train and val sets
-        train_split = train_to_val
-        val_split = 1 - train_split
+        dataset = VesselLabelDataset(
+            inputs=f'{self.exp_path}/*label*', subset=self.synth_samples)
+        # Splitting up train and val sets with specified random seed
         seed = torch.Generator().manual_seed(42)
         self.train_set, self.val_set = random_split(
-            dataset, [train_split, val_split], seed)
+            dataset, [self.train_to_val, 1 - self.train_to_val], seed)
         # Logger and checkpoint stuff
         self.logger = TensorBoardLogger(
             self.output_path, self.model_dir, self.version_n)

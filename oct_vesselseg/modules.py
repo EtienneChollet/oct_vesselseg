@@ -25,7 +25,7 @@ from torch import nn
 from cornucopia.utils import warps
 
 # Custom imports
-from core import utils
+from oct_vesselseg import utils
 
 
 class Downsample(nn.Module):
