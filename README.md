@@ -1,5 +1,11 @@
 # oct_vesselseg
 
+<p align="center">
+  <img src="docs/Chollet_Microvascular-Networks-of-the-Human-Brain.gif" 
+       alt="Results from Large-Scale Segmentation" width="528" 
+       style="float: left; margin-right: 15px;">
+</p>
+
 Characterized by minimal priors and high variance sampling, this project builds on the emerging field of synthesis-based training by proposing an entirely data-free synthesis engine for training a Unet in the task of vascular labeling in sOCT data (mus modality). This project employs domain-randomized synthesis to create structured vessel and neural parenchyma labels, textures, and artifacts. It creates volumetric imaging data *similar* to, but not emulative of 3D sOCT data, with corresponding (perfect) ground truth labels for vasculature. The package contains a training module employing an on-the-fly image synthesis procedure to create a virtually infinite number of unique volumetric training data.
 
 # Table of Contents
