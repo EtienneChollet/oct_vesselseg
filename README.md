@@ -1,4 +1,4 @@
-# oct_vesselseg
+<h1 align="center">OCT VesselSeg</h1>
 
 <p align="center">
   <img src="docs/Chollet_Microvascular-Networks-of-the-Human-Brain.gif" 
