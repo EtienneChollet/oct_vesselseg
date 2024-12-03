@@ -1,4 +1,15 @@
-# oct_vesselseg
+<h1 align="center">OCT VesselSeg</h1>
+
+<p align="center">
+  <img src="docs/Chollet_Microvascular-Networks-of-the-Human-Brain.gif" 
+       alt="Results from Large-Scale Segmentation" width="528" 
+       style="float: left; margin-right: 15px;">
+</p>
+
+<p align="center">
+  Figure 1. Results of large-scale segmentation on sOCT imaging data. <br>Explore interactively on <a href="https://neuroglancer-demo.appspot.com/#!%7B%22dimensions%22:%7B%22z%22:%5B0.000019999999552965164%2C%22m%22%5D%2C%22y%22:%5B0.000019999999552965164%2C%22m%22%5D%2C%22x%22:%5B0.000019999999552965164%2C%22m%22%5D%7D%2C%22position%22:%5B206.36463928222656%2C735%2C767%5D%2C%22crossSectionScale%22:1.8694431659994932%2C%22projectionScale%22:2048%2C%22layers%22:%5B%7B%22type%22:%22image%22%2C%22source%22:%22zarr://https://dandiarchive.s3.amazonaws.com/zarr/acffe53b-4849-4cc2-a01d-06e424896745%22%2C%22tab%22:%22rendering%22%2C%22shaderControls%22:%7B%22normalized%22:%7B%22range%22:%5B0%2C0.02%5D%7D%7D%2C%22name%22:%22image%22%7D%2C%7B%22type%22:%22segmentation%22%2C%22source%22:%22zarr://https://dandiarchive.s3.amazonaws.com/zarr/89663cb1-1526-49fa-b7ec-5de02f9e3adb/%22%2C%22tab%22:%22rendering%22%2C%22selectedAlpha%22:0.22%2C%22segments%22:%5B%5D%2C%22segmentDefaultColor%22:%22#00ffee%22%2C%22name%22:%22mask%22%7D%2C%7B%22type%22:%22segmentation%22%2C%22source%22:%22zarr://https://dandiarchive.s3.amazonaws.com/zarr/c7913931-1ff7-4fe8-a86d-92b31947cb31/%22%2C%22tab%22:%22rendering%22%2C%22selectedAlpha%22:1%2C%22segments%22:%5B%5D%2C%22segmentDefaultColor%22:%22#00f900%22%2C%22name%22:%22prediction%20%28maximum%20likelihood%29%22%7D%2C%7B%22type%22:%22image%22%2C%22source%22:%22zarr://https://dandiarchive.s3.amazonaws.com/zarr/e324c757-31b3-4ec6-a7e6-25f133420632/%22%2C%22tab%22:%22rendering%22%2C%22opacity%22:1%2C%22shader%22:%22#uicontrol%20invlerp%20normalized%5Cnvoid%20main%28%29%20%7B%5Cn%20%20vec4%20color%3B%5Cn%20%20color.r%20=%20normalized%28%29%3B%5Cn%20%20color.g%20=%200.0%3B%5Cn%20%20color.b%20=%200.0%3B%5Cn%20%20color.a%20=%20normalized%28%29%3B%5Cn%20%20emitRGBA%28color%29%3B%5Cn%7D%5Cn%22%2C%22name%22:%22prediction%20%28probability%29%22%2C%22visible%22:false%7D%5D%2C%22selectedLayer%22:%7B%22visible%22:true%2C%22layer%22:%22prediction%20%28probability%29%22%7D%2C%22layout%22:%224panel%22%2C%22layerListPanel%22:%7B%22visible%22:true%7D%7D">Neuroglancer</a>.
+</p>
+
 
 Characterized by minimal priors and high variance sampling, this project builds on the emerging field of synthesis-based training by proposing an entirely data-free synthesis engine for training a Unet in the task of vascular labeling in sOCT data (mus modality). This project employs domain-randomized synthesis to create structured vessel and neural parenchyma labels, textures, and artifacts. It creates volumetric imaging data *similar* to, but not emulative of 3D sOCT data, with corresponding (perfect) ground truth labels for vasculature. The package contains a training module employing an on-the-fly image synthesis procedure to create a virtually infinite number of unique volumetric training data.
 
