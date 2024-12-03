@@ -386,13 +386,13 @@ def test(in_path: str, model_version_n: int = 1, model_dir: str = 'models',
                 input=path,
                 patch_size=patch_size,
                 redundancy=redundancy,
-                trainee=unet.trainee,
+                # trainee=unet.trainee,
                 pad_it=True,
                 padding_method=padding_method,
-                normalize_patches=normalize_patches
+                normalize=normalize_patches
             )
 
-            prediction = RealOctPredict(oct_config)
+            prediction = RealOctPredict(oct_config, trainee=unet.trainee)
             prediction.predict_on_all()
             out_path = f"{unet.version_path}/predictions"
             prediction.save_prediction(dir=out_path)
