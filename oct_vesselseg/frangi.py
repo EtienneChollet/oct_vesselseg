@@ -75,19 +75,60 @@ class FrangiSigmas(Dataset):
         return valid_bounds
 
     def _make_sigmas(self) -> tuple:
+        """
+        Generate a list of sigma configurations based on the sigma bounds.
 
+        For each pair of (lower_bound, upper_bound), this method divides the
+        interval into `n_sigma_steps` and computes incremental sigma steps.
+        Each configuration is stored as a tuple containing (lower_bound,
+        upper_bound, sigma_step). Which is the proper format as expected by
+        `skimage.filters.frangi`
+
+        Returns
+        -------
+        list of tuple of float
+            A list of (lower_bound, upper_bound, sigma_step) tuples.
+        """
+        # Get all valid sigma bounds
         sigma_bounds = self._make_sigma_bounds()
+        # Initialize sigmas list to which the configuration will be appended
         sigmas = []
+
+        # Compute each configuration and add to sigmas list
         for bounds in sigma_bounds:
-            a = bounds[0]
-            b = bounds[1]
+            # Extract upper and lower bounds for efficiency
+            lower_sigma_bound = bounds[0]
+            upper_sigma_bound = bounds[1]
             for n in range(1, self.n_sigma_steps):
-                sigma_step = (b - a) / n
-                sigmas.append((a, b, sigma_step))
+                sigma_step = (upper_sigma_bound - lower_sigma_bound) / n
+                sigmas.append(
+                    (lower_sigma_bound, upper_sigma_bound, sigma_step)
+                )
         return sigmas
 
     def __len__(self) -> int:
+        """
+        Return the total number of sigma configurations in the dataset.
+
+        Returns
+        -------
+        int
+            Total number of sigma configurations.
+        """
         return len(self.sigmas)
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> tuple:
+        """
+        Retrieve the sigma configuration at the specified index.
+
+        Parameters
+        ----------
+        idx : int
+            The index of the desired sigma configuration.
+
+        Returns
+        -------
+        tuple of float
+            A tuple containing (lower_bound, upper_bound, sigma_step).
+        """
         return self.sigmas[idx]
