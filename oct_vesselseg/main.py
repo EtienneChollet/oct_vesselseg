@@ -367,8 +367,12 @@ def test(in_path: str, model_version_n: int = 1, model_dir: str = 'models',
 
     # Starting timer
     t1 = time.time()
-    in_path = [in_path] if isinstance(in_path, str) else in_path
+    if ',' in in_path:
+        in_path = in_path.split(',')
+    else:
+        in_path = [in_path] if isinstance(in_path, str) else in_path
     print(in_path)
+
     # Make the prediction without gradient computations
     with torch.no_grad():
         for path in in_path:
@@ -377,7 +381,7 @@ def test(in_path: str, model_version_n: int = 1, model_dir: str = 'models',
                 version_n=model_version_n,
                 model_dir=model_dir,
                 device='cuda'
-                )
+            )
 
             # Loading model weights and setting to test mode
             unet.load(type=checkpoint, mode='test')
