@@ -4,7 +4,8 @@ __all__ = [
     'JsonTools',
     'Checkpoint',
     'ensure_list',
-    'make_vector'
+    'make_vector',
+    'quantile_norm',
 ]
 
 # Standard imports
@@ -296,3 +297,78 @@ def make_vector(input, n=None, crop=True, *args,
         default = input[-1]
     default = input.new_full([n-len(input)], default)
     return torch.cat([input, default])
+
+
+def quantile_norm(
+    input_tensor: torch.Tensor,
+    pmin: float = 0.01,
+    pmax: float = 0.99,
+    vmin: float = 0.0,
+    vmax: float = 1.0,
+    sample_size: int = 10_000
+) -> torch.Tensor:
+    """
+    Apply quantile-based normalization to a tensor.
+
+    This function scales the input tensor so that the `pmin` and `pmax` 
+    quantiles of the non-zero elements map linearly to `vmin` and `vmax`, 
+    respectively. If the input contains only zeros, it returns a normalized 
+    tensor of Gaussian noise.
+
+    Parameters
+    ----------
+    input_tensor : torch.Tensor
+        The input tensor to normalize. Can be any shape.
+    pmin : float, optional
+        The lower quantile to map to `vmin`. Should be in (0, 1). Default is 0.01.
+    pmax : float, optional
+        The upper quantile to map to `vmax`. Should be in (0, 1). Default is 0.99.
+    vmin : float, optional
+        The target value corresponding to the `pmin` quantile. Default is 0.0.
+    vmax : float, optional
+        The target value corresponding to the `pmax` quantile. Default is 1.0.
+    sample_size : int, optional
+        Number of samples to use for estimating quantiles. Default is 10,000.
+
+    Returns
+    -------
+    torch.Tensor
+        A tensor with the same shape and device as `input_tensor`, normalized.
+    """
+    flat = input_tensor.flatten()
+    mask = flat != 0
+
+    if mask.sum() == 0:
+        noise = torch.randn_like(input_tensor)
+        flat_noise = noise.flatten()
+
+        n = flat_noise.numel()
+        if n > sample_size:
+            idx = torch.randint(0, n, (sample_size,), device=flat_noise.device)
+            sampled = flat_noise[idx]
+        else:
+            sampled = flat_noise
+
+        qmin = torch.quantile(sampled, pmin)
+        qmax = torch.quantile(sampled, pmax)
+
+        scale = (vmax - vmin) / (qmax - qmin)
+        shift = vmin - qmin * scale
+
+        return noise * scale + shift
+
+    nonzero_vals = flat[mask]
+    n = nonzero_vals.numel()
+    if n > sample_size:
+        idx = torch.randint(0, n, (sample_size,), device=flat.device)
+        sampled = nonzero_vals[idx]
+    else:
+        sampled = nonzero_vals
+
+    qmin = torch.quantile(sampled, pmin)
+    qmax = torch.quantile(sampled, pmax)
+
+    scale = (vmax - vmin) / (qmax - qmin)
+    shift = vmin - qmin * scale
+
+    return input_tensor * scale + shift

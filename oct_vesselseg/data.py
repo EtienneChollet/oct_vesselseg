@@ -16,12 +16,12 @@ import nibabel as nib
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from cornucopia import QuantileTransform
 from typing import Union, Optional, Tuple
 
 # Local application/library specific imports
-from oct_vesselseg.utils import Options
+from oct_vesselseg.utils import quantile_norm
 from oct_vesselseg.attenuators import SinusoidalAttenuator
+from oct_vesselseg.utils import Options
 
 
 @dataclass
@@ -322,13 +322,26 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
             # Normalize the patch if the flag is set
             if self.normalize_patches is True:
                 try:
-                    patch = QuantileTransform(
-                        vmin=0.2, vmax=0.8)(patch.float())
+                    if patch.numel() == 0:
+                        print("Tensor is empty.")
+                        #raise RuntimeError(
+                        #    f"Empty patch at index {idx}, "
+                        #    f"coordinates {self._patch_coords(idx)}"
+                        #)
+    
+                        patch = torch.randn_like(patch)
+
+                    patch = quantile_norm(
+                        input_tensor=patch.float(), 
+                        vmin=0.2, vmax=0.8
+                    )
+
                 except ValueError as e:
                     print(
                         f"ValueError: {e}. Quantile transform failed.")
                     patch -= patch.min()
                     patch /= patch.max()
+
             # Predict with model
             prediction = self.trainee(patch)
             # Apply sigmoid activation to logits
