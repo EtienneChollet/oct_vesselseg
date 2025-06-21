@@ -38,10 +38,18 @@ def predict_volume(
         "out_path": out_path
     }
 
-    with requests.post(api_url, data=data) as resp:
+    with requests.post(api_url, data=data, stream=True) as resp:
         resp.raise_for_status()
-        if out_path:
-            print(f"Saved prediction to {out_path!r}")
+
+        for chunk in resp.iter_content(chunk_size=8192):
+            try:
+                text = chunk.decode("utf-8")
+                print(text, end="")
+            except:
+                pass
+
+        #if out_path:
+        #    print(f"Saved prediction to {out_path!r}")
 
 
 if __name__ == "__main__":
