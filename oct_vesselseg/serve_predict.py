@@ -17,6 +17,7 @@ Example client
 from __future__ import annotations
 import io
 import sys
+import shutil
 
 from enum import Enum
 from typing import Annotated
@@ -59,31 +60,45 @@ async def predict(
         Binary payload with appropriate `Content-Type`.
     """
 
-    print(f'Loading volume at: {in_path}')
-    print(f'Going to save to {out_path}')
+    async def streamer():
 
-    volume_tensor = nib.load(in_path).get_fdata()
-    print(volume_tensor.shape)
+        width = shutil.get_terminal_size(fallback=(80, 24)).columns
+        yield str("-" * width).encode()
+        yield f"\nLoading volume: {in_path}\n".encode()
+        print(f'Going to save to {out_path}')
 
-    with torch.no_grad():
-        unet = UnetWrapper(
-            version_n=1,
-            model_dir='models',
-            device='cuda'
-        )
+        volume_tensor = nib.load(in_path).get_fdata()
+        yield f"Shape: {volume_tensor.shape}\n".encode()
 
-        unet.load(type='best', mode='test')
+        with torch.no_grad():
+            unet = UnetWrapper(
+                version_n=1,
+                model_dir='models',
+                device='cuda'
+            )
 
-        # Configuring prediction
-        oct_config = RealOctConfig(
-            input=in_path,
-            patch_size=128,
-            redundancy=3,
-            pad_it=True,
-            padding_method='reflect',
-            normalize=True,
-        )
+            unet.load(type='best', mode='test')
 
-        prediction = RealOctPredict(oct_config, trainee=unet.trainee)
-        prediction.predict_on_all()
+            # Configuring prediction
+            oct_config = RealOctConfig(
+                input=in_path,
+                patch_size=128,
+                redundancy=3,
+                pad_it=True,
+                padding_method='reflect',
+                normalize=True,
+            )
 
+            prediction = RealOctPredict(oct_config, trainee=unet.trainee)
+            # prediction.predict_on_all()
+
+        del unet, oct_config, volume_tensor, prediction
+        torch.cuda.empty_cache()
+        gc.collect()
+
+        print('Finished the job!')
+
+    return StreamingResponse(
+        streamer(),
+        media_type="application/octet-stream"
+    )
