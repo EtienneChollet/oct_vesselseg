@@ -27,30 +27,43 @@ setup(
     packages=find_packages(),
     entry_points={
             'console_scripts': [
-                'oct_vesselseg=oct_vesselseg:main.app'
-            ]
+                'oct_vesselseg=oct_vesselseg:main.app',
+            ],
         },
 
     install_requires=[
-#        cupy_package,
-        'cppyy==2.3',
-        'torch',
-        'torchvision',
-        'torchaudio',
-        'torchmetrics',
-        'jitfields',
-        'torch-interpol',
-        'torch-distmap',
-        'nibabel',
-        'pytorch-lightning',
-        'scikit-learn',
-        'matplotlib',
-        'tensorboard',
-        'pandas',
         'cyclopts',
-        'cornucopia',
     ],
 
+    extras_require={
+
+        'client': [
+            'fastapi',
+            'python-multipart',
+            'uvicorn',
+            'requests'
+        ],
+
+        'server': [
+            cupy_package,
+            'cppyy==2.3',
+            'torch',
+            'torchvision',
+            'torchaudio',
+            'torchmetrics',
+            'jitfields',
+            'torch-interpol',
+            'torch-distmap',
+            'nibabel',
+            'pytorch-lightning',
+            'scikit-learn',
+            'matplotlib',
+            'tensorboard',
+            'pandas',
+            'cyclopts',
+            'cornucopia',
+        ],
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',

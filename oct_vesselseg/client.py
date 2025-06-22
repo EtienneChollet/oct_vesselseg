@@ -12,7 +12,6 @@ from cyclopts import App
 
 app = App()
 
-
 @app.default()
 def predict_volume(
     in_path: str,
