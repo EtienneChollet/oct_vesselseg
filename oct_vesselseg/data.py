@@ -22,6 +22,7 @@ from typing import Union, Optional, Tuple
 from oct_vesselseg.utils import quantile_norm
 from oct_vesselseg.attenuators import SinusoidalAttenuator
 from oct_vesselseg.utils import Options
+from oct_vesselseg.callbacks import InferenceETA
 
 
 @dataclass
@@ -288,17 +289,27 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         RealOctPatchLoader.__init__(self, config)
         # Set the configuration for tensors
         self.backend = {'dtype': self.dtype, 'device': self.device}
+
         # Set the model (if provided) to evaluation mode
         self.trainee = trainee.eval() if trainee else None
+
         # Initialize the imprint tensor with zeros
         self.imprint_tensor = torch.zeros(self.tensor.shape, **self.backend)
+
         # Initialize weight tracker
         self.weight_tracker = torch.zeros(self.tensor.shape, **self.backend)
+
         # Set normalization flag
         self.normalize_patches = normalize_patches
+
         # Prepare the 3D sine-weighted attenuation kernel
         self.patch_attenuator = SinusoidalAttenuator(
-            size=self.patch_size, dimensions=3)().cuda()
+            size=self.patch_size, dimensions=3
+        )().cuda()
+
+        self.callbacks = [
+            InferenceETA(len(self))
+        ]
 
     def __getitem__(self, idx: int):
         """
@@ -376,20 +387,14 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         # Loop through each patch and make predictions
         for i in range(n_patches):
             self[i]
-            # Print updates every ten patches
-            if (i+1) % 10 == 0:
-                total_elapsed_time = time.time() - t0
-                avg_pred_time = round(total_elapsed_time / (i+1), 3)
-                total_pred_time = round(
-                    avg_pred_time * n_patches / 60, 2)
-                # Construct the status message
-                status_message = (
-                    f"\rPrediction {i + 1}/{n_patches} | "
-                    f"{avg_pred_time} sec/pred | "
-                    f"{total_pred_time} min total pred time"
-                    )
-                sys.stdout.write(status_message)
-                sys.stdout.flush()
+
+            callback_kwargs = {
+                "step_num": i,
+                "t0": t0
+            }
+
+            for callback in self.callbacks:
+                callback.on_step(**callback_kwargs)
 
         # Remove padding from the imprint tensor
         s = slice(self.patch_size, -self.patch_size)
