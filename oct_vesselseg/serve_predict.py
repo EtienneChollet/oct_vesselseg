@@ -6,12 +6,6 @@ Run
 >>> pip install fastapi uvicorn python-multipart
 >>> cd oct_vesselseg/oct_vesselseg/
 >>> uvicorn serve_predict:app --host 0.0.0.0 --port 8000 --reload
-
-Example client
---------------
->>> curl -X POST http://127.0.0.1:8000/predict \
-    -F "in_path=/autofs/cluster/octdata2/users/epc28/data/caroline_data/I46_Somatosensory_20um_averaging_new_mask_cleaned.nii" \
-    -F "out_path=/autofs/cluster/octdata2/users/epc28/data/caroline_data/I46_Somatosensory_20um_averaging_new_mask_cleaned_prediction.nii"
 """
 
 from __future__ import annotations
