@@ -32,7 +32,7 @@ setup(
         },
 
     install_requires=[
-        cupy_package,
+#        cupy_package,
         'cppyy==2.3',
         'torch',
         'torchvision',
