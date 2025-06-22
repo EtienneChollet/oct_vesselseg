@@ -6,10 +6,12 @@ __all__ = [
 ]
 
 # Standard library imports
+import gc
 import os
 import sys
 import time
 from dataclasses import dataclass
+from typing import List
 
 # Third-party imports
 import nibabel as nib
@@ -280,8 +282,14 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         outputs to smooth the transitions between patches.
     """
 
-    def __init__(self, config: RealOctConfig, trainee: torch.nn.Module = None,
-                 normalize_patches: bool = True, *args, **kwargs):
+    def __init__(
+        self,
+        config: RealOctConfig,
+        trainee: torch.nn.Module = None,
+        normalize_patches: bool = True,
+        callbacks: List = [],
+        *args, **kwargs
+    ):
         """
         Initialize the predictor, setting up the model and prediction
         containers.
@@ -308,8 +316,9 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         )().cuda()
 
         self.callbacks = [
-            InferenceETA(len(self))
+            InferenceETA(len(self)),
         ]
+        self.callbacks.extend(callbacks)
 
     def __getitem__(self, idx: int):
         """
@@ -387,6 +396,12 @@ class RealOctPredict(RealOctPatchLoader, Dataset):
         # Loop through each patch and make predictions
         for i in range(n_patches):
             self[i]
+
+            # Check for cancellation
+            if any(getattr(cb, "should_stop", False) for cb in self.callbacks):
+                for attr in list(vars(self).keys()):
+                    setattr(self, attr, None)  # or: delattr(obj, attr)
+                return
 
             callback_kwargs = {
                 "step_num": i,

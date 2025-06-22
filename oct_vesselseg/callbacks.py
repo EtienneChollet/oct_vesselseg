@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import time
 import sys
+import threading
 
 class InferenceCallback(ABC):
     @abstractmethod
@@ -31,3 +32,13 @@ class InferenceETA(InferenceCallback):
                 )
             sys.stdout.write(status_message)
             sys.stdout.flush()
+
+class CancelOnFlag:
+    def __init__(self, cancel_event: threading.Event):
+        self.cancel_event = cancel_event
+        self.should_stop = False
+
+    def on_step(self, step_num: int, *args, **kwargs):
+        if self.cancel_event.is_set():
+            print(f"[CancelOnFlag] Cancelling at step {step_num}\n")
+            self.should_stop = True
