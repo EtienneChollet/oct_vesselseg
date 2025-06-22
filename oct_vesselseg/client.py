@@ -5,7 +5,7 @@ Example
 -------
 python oct_vesselseg/client.py /autofs/cluster/octdata2/users/epc28/data/caroline_data/I46_Somatosensory_20um_averaging_new_mask_cleaned.nii
 """
-import pprint
+
 from typing import Literal
 import requests
 from cyclopts import App
@@ -56,7 +56,6 @@ def predict_volume(
         "padding_method": padding_method,
         "normalize_patches": str(normalize_patches).lower(),
     }
-    pprint.pprint(data)
 
     with requests.post(api_url, data=data, stream=True) as resp:
         resp.raise_for_status()
@@ -67,11 +66,6 @@ def predict_volume(
                 print(text, end="")
             except:
                 pass
-
-        # print(resp.status_code)
-        # print(resp.text)
-        # if out_path:
-        #    print(f"Saved prediction to {out_path!r}")
 
 
 if __name__ == "__main__":
